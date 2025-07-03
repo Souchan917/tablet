@@ -17,21 +17,37 @@ let isConnected = false;
 // Firebase接続関数
 function initializeFirebase() {
     try {
+        console.log('Firebase初期化を開始...', firebaseConfig);
+        
         // Firebase初期化
         firebase.initializeApp(firebaseConfig);
         database = firebase.database();
+        
+        console.log('Firebase初期化完了、接続状態監視を開始...');
         
         // 接続状態を監視
         const connectedRef = database.ref('.info/connected');
         connectedRef.on('value', (snapshot) => {
             isConnected = snapshot.val() === true;
+            console.log('Firebase接続状態変更:', isConnected);
             updateConnectionStatus();
+        });
+        
+        // 接続テスト
+        database.ref('test').set({
+            timestamp: Date.now(),
+            message: 'Firebase接続テスト'
+        }).then(() => {
+            console.log('Firebase書き込みテスト成功');
+        }).catch(error => {
+            console.error('Firebase書き込みテストエラー:', error);
         });
         
         console.log('Firebase初期化成功');
         return true;
     } catch (error) {
         console.error('Firebase初期化エラー:', error);
+        console.error('エラーの詳細:', error.message);
         return false;
     }
 }
@@ -147,7 +163,87 @@ function updateDeviceStatus(deviceId) {
     return Promise.resolve();
 }
 
+// Firebase接続テスト用の関数
+function testFirebaseConnection() {
+    console.log('Firebase接続テストを開始...');
+    
+    if (!database) {
+        console.error('Firebase database が初期化されていません');
+        return Promise.reject(new Error('Database not initialized'));
+    }
+    
+    const testPath = `test/connection_test_${Date.now()}`;
+    const testData = {
+        timestamp: Date.now(),
+        message: 'Firebase接続テスト',
+        device: navigator.userAgent
+    };
+    
+    return writeData(testPath, testData)
+        .then(() => {
+            console.log('Firebase書き込みテスト成功');
+            return new Promise((resolve) => {
+                database.ref(testPath).once('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (data && data.message === 'Firebase接続テスト') {
+                        console.log('Firebase読み込みテスト成功');
+                        resolve(true);
+                    } else {
+                        console.error('Firebase読み込みテストで異常なデータ:', data);
+                        resolve(false);
+                    }
+                });
+            });
+        })
+        .catch(error => {
+            console.error('Firebase接続テストエラー:', error);
+            return false;
+        });
+}
+
+// グローバルに関数を公開（デバッグ用）
+window.testFirebaseConnection = testFirebaseConnection;
+window.firebaseDebug = {
+    database: () => database,
+    isConnected: () => isConnected,
+    writeData: writeData,
+    readData: readData,
+    sendCommand: sendCommand,
+    registerDevice: registerDevice
+};
+
 // 初期化実行
 document.addEventListener('DOMContentLoaded', () => {
-    initializeFirebase();
+    console.log('DOM読み込み完了、Firebase初期化を開始...');
+    
+    // Firebase SDKが読み込まれているかを確認
+    if (typeof firebase === 'undefined') {
+        console.error('Firebase SDK が読み込まれていません！');
+        console.error('HTMLファイルで Firebase SDK のスクリプトタグを確認してください。');
+        return;
+    }
+    
+    // Firebase SDKのバージョン確認
+    console.log('Firebase SDK version:', firebase.SDK_VERSION);
+    
+    // Firebase初期化
+    const initResult = initializeFirebase();
+    
+    if (!initResult) {
+        console.error('Firebase初期化に失敗しました');
+        // 接続インジケーターを赤に設定
+        const indicator = document.querySelector('.connection-indicator');
+        if (indicator) {
+            indicator.style.backgroundColor = 'rgba(244, 67, 54, 0.7)';
+            indicator.title = 'Firebase初期化失敗';
+        }
+    }
+    
+    // 5秒後に再度接続状態を確認
+    setTimeout(() => {
+        console.log('5秒後の接続状態確認:', isConnected);
+        if (!isConnected) {
+            console.warn('Firebase接続が確立されていません。ネットワーク接続を確認してください。');
+        }
+    }, 5000);
 }); 
