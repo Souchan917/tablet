@@ -319,7 +319,7 @@ body {
     object-fit: contain;
 }
 
-/* カメラ画面 - 全画面表示 */
+/* カメラ画面 - 遅延機能付きカメラ表示 */
 .camera-container {
     width: 100vw;
     height: 100vh;
@@ -329,32 +329,504 @@ body {
     background: #000;
     display: flex;
     flex-direction: column;
+    position: relative;
 }
 
-.camera-container h2 {
+/* カメラモード選択画面 */
+.camera-mode-selector {
     position: absolute;
-    top: 20px;
-    left: 20px;
-    color: white;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
     z-index: 10;
-    margin: 0;
-    background: rgba(0,0,0,0.5);
-    padding: 10px 20px;
-    border-radius: 5px;
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(212, 175, 55, 0.3);
 }
 
-.camera-view {
-    background: #000;
-    border-radius: 0;
-    padding: 0;
-    margin: 0;
-    width: 100vw;
-    height: 100vh;
+.camera-mode-selector h3 {
+    color: #d4af37;
+    font-size: 1.8rem;
+    margin-bottom: 30px;
+    font-weight: 600;
+}
+
+.mode-buttons {
+    display: flex;
+    gap: 30px;
+    justify-content: center;
+}
+
+.mode-button {
+    background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+    border: 2px solid #d4af37;
+    border-radius: 15px;
+    padding: 30px 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: #fff;
+    text-align: center;
+    min-width: 180px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.mode-button:hover {
+    background: linear-gradient(135deg, #2a2a2a, #3a3a3a);
+    border-color: #f4e38e;
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(212, 175, 55, 0.3);
+}
+
+.mode-icon {
+    font-size: 3rem;
+    margin-bottom: 10px;
+}
+
+.mode-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #d4af37;
+}
+
+.mode-desc {
+    font-size: 0.9rem;
+    color: #ccc;
+    margin-top: 5px;
+}
+
+/* モード選択後のコントロール表示/非表示 */
+.broadcast-controls,
+.receive-controls {
+    display: none;
+}
+
+.camera-container.broadcast-mode .broadcast-controls {
+    display: flex;
+}
+
+.camera-container.receive-mode .receive-controls {
+    display: flex;
+}
+
+.camera-container.broadcast-mode .camera-mode-selector,
+.camera-container.receive-mode .camera-mode-selector {
+    display: none;
+}
+
+/* PeerJS情報表示 */
+.peer-info {
+    margin-bottom: 15px;
+}
+
+.peer-id-display {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.peer-label {
+    color: #d4af37;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.peer-id {
+    background: rgba(212, 175, 55, 0.1);
+    color: #d4af37;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-family: monospace;
+    font-size: 14px;
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    min-width: 100px;
+    text-align: center;
+}
+
+/* カメラ映像表示エリア */
+.camera-view-container {
+    flex: 1;
+    position: relative;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100vw;
+    height: 100vh;
+}
+
+.delayed-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #000;
+}
+
+/* カメラコントロール */
+.camera-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.85);
+    border-radius: 15px;
+    padding: 15px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 320px;
+    z-index: 10;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.camera-select-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.camera-select-row select {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 2px solid #333;
+    background: rgba(255, 255, 255, 0.95);
+    color: #333;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.camera-select-row select:focus {
+    outline: none;
+    border-color: #d4af37;
+}
+
+.delay-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     color: #fff;
-    font-size: 1.1rem;
+}
+
+.delay-control label {
+    font-weight: 600;
+    min-width: 50px;
+    font-size: 14px;
+}
+
+.delay-control input[type="range"] {
+    flex: 1;
+    height: 6px;
+    background: #333;
+    border-radius: 3px;
+    outline: none;
+    appearance: none;
+    cursor: pointer;
+}
+
+.delay-control input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: linear-gradient(45deg, #d4af37, #b8941f);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s ease;
+}
+
+.delay-control input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+}
+
+.delay-control input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: linear-gradient(45deg, #d4af37, #b8941f);
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+#camera-delay-value {
+    color: #d4af37;
+    font-weight: 600;
+    min-width: 55px;
+    font-size: 14px;
+    text-align: center;
+}
+
+.camera-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.control-button {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    min-width: 70px;
+    text-align: center;
+}
+
+.control-button.primary {
+    background: linear-gradient(45deg, #4361ee, #3a56d4);
+    color: #fff;
+}
+
+.control-button.danger {
+    background: linear-gradient(45deg, #f87171, #ef4444);
+    color: #fff;
+}
+
+.control-button.secondary {
+    background: linear-gradient(45deg, #64748b, #475569);
+    color: #fff;
+}
+
+.control-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.control-button:active {
+    transform: translateY(0);
+}
+
+.control-button:disabled {
+    background: #666;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    opacity: 0.6;
+}
+
+/* カメラステータス表示 */
+.camera-status {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    text-align: center;
+    z-index: 10;
+    max-width: 80%;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* カメラ画面の戻るボタン */
+.camera-container .back-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    border: 2px solid #333;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 10;
+    backdrop-filter: blur(10px);
+    transition: all 0.2s ease;
+}
+
+.camera-container .back-btn:hover {
+    background: rgba(0, 0, 0, 0.95);
+    border-color: #d4af37;
+    transform: translateY(-2px);
+}
+
+/* 全画面モード時の調整 */
+.camera-container.fullscreen-camera .camera-controls {
+    bottom: 40px;
+    padding: 20px 30px;
+    min-width: 400px;
+}
+
+.camera-container.fullscreen-camera .control-button {
+    padding: 12px 20px;
+    font-size: 16px;
+    min-width: 90px;
+}
+
+.camera-container.fullscreen-camera .delay-control {
+    gap: 15px;
+}
+
+.camera-container.fullscreen-camera .delay-control label,
+.camera-container.fullscreen-camera #camera-delay-value {
+    font-size: 16px;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    .camera-controls {
+        min-width: 300px;
+        padding: 12px 18px;
+        bottom: 15px;
+    }
+    
+    .camera-buttons {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .control-button {
+        padding: 8px 14px;
+        font-size: 13px;
+        min-width: 60px;
+    }
+    
+    .delay-control {
+        font-size: 13px;
+        gap: 10px;
+    }
+    
+    .delay-control label {
+        min-width: 45px;
+    }
+    
+    #camera-delay-value {
+        min-width: 50px;
+        font-size: 13px;
+    }
+    
+    .camera-status {
+        font-size: 13px;
+        padding: 10px 16px;
+        top: 15px;
+    }
+    
+    .camera-container .back-btn {
+        top: 15px;
+        right: 15px;
+        padding: 8px 14px;
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 480px) {
+    .camera-controls {
+        min-width: 280px;
+        padding: 10px 15px;
+        bottom: 10px;
+    }
+    
+    .camera-select-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .camera-select-row select {
+        width: 100%;
+    }
+    
+    .delay-control {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+    }
+    
+    .delay-control input[type="range"] {
+        width: 100%;
+    }
+    
+    .camera-buttons {
+        justify-content: space-between;
+    }
+    
+    .control-button {
+        flex: 1;
+        min-width: 50px;
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+    
+    /* モード選択画面のレスポンシブ対応 */
+    .camera-mode-selector {
+        padding: 20px;
+        max-width: 90vw;
+    }
+    
+    .camera-mode-selector h3 {
+        font-size: 1.4rem;
+        margin-bottom: 20px;
+    }
+    
+    .mode-buttons {
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .mode-button {
+        min-width: 150px;
+        padding: 20px 15px;
+    }
+    
+    .mode-icon {
+        font-size: 2.5rem;
+    }
+    
+    .mode-title {
+        font-size: 1rem;
+    }
+    
+    .mode-desc {
+        font-size: 0.8rem;
+    }
+    
+    .peer-id {
+        font-size: 12px;
+        padding: 5px 10px;
+        min-width: 80px;
+    }
+}
+
+/* タブレット横向き対応 */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+    .camera-mode-selector {
+        padding: 30px;
+    }
+    
+    .mode-buttons {
+        gap: 40px;
+    }
+    
+    .mode-button {
+        min-width: 200px;
+        padding: 35px 30px;
+    }
+    
+    .camera-controls {
+        min-width: 350px;
+        padding: 18px 25px;
+        bottom: 25px;
+    }
+    
+    .control-button {
+        padding: 10px 18px;
+        font-size: 15px;
+        min-width: 75px;
+    }
 }
 
 /* 車両番号画面 */
@@ -657,7 +1129,6 @@ body {
 }
 
 /* 接続状態インジケーター */
-/* 接続状態インジケーター */
 .connection-indicator {
     position: fixed;
     top: 20px;
@@ -668,6 +1139,68 @@ body {
     background: #000;
     z-index: 1000;
     opacity: 0.7;
+    transition: all 0.3s ease;
+}
+
+/* 通知のアニメーション */
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* 通知スタイル */
+.notification {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: bold;
+    z-index: 10000;
+    max-width: 300px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    animation: slideIn 0.3s ease-out;
+    font-size: 14px;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.notification.success {
+    background: linear-gradient(45deg, #4CAF50, #45a049);
+}
+
+.notification.error {
+    background: linear-gradient(45deg, #f44336, #d32f2f);
+}
+
+.notification.warning {
+    background: linear-gradient(45deg, #ff9800, #f57c00);
+}
+
+.notification.info {
+    background: linear-gradient(45deg, #2196F3, #1976D2);
+}
+
+.notification.fade-out {
+    animation: slideOut 0.3s ease-in;
 }
 
 /* タップエリア */
@@ -682,6 +1215,16 @@ body {
 }
 
 .tap-area-monitor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100px;
+    height: 100px;
+    z-index: 1001;
+    cursor: pointer;
+}
+
+.tap-area-camera {
     position: fixed;
     top: 0;
     left: 0;
