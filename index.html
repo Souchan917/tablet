@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>謎解き公演制御システム</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -69,7 +72,27 @@
         <div class="master-container">
             <h2>マスター制御画面</h2>
             <div class="master-controls">
-                <p>マスター制御機能がここに表示されます</p>
+                <div class="control-group">
+                    <h3>車両番号制御</h3>
+                    <div class="vehicle-control-panel">
+                        <div class="vehicle-controls">
+                            <button class="control-btn" id="decrementBtn">前の車両</button>
+                            <input type="number" id="carInput" min="1" value="3600" placeholder="車両番号">
+                            <button class="control-btn" id="incrementBtn">次の車両</button>
+                            <button class="control-btn apply-btn" id="applyBtn">適用</button>
+                        </div>
+                        <div class="vehicle-status">
+                            <span class="status-label">現在の車両番号:</span>
+                            <span class="current-vehicle" id="currentVehicleNumber">3600</span>
+                            <span class="status-label">自動減少:</span>
+                            <span class="auto-status" id="autoStatus">停止中</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <h3>その他の制御</h3>
+                    <p>その他のマスター制御機能がここに表示されます</p>
+                </div>
             </div>
             <button class="back-btn" id="back-from-master">戻る</button>
         </div>
@@ -82,6 +105,8 @@
             <div class="image-display" id="monitor-front-display">
                 <p>画像がここに表示されます</p>
             </div>
+            <!-- タップエリア -->
+            <div class="tap-area-monitor" id="tap-area-monitor-front"></div>
             <button class="back-btn" id="back-from-monitor-front">戻る</button>
         </div>
     </div>
@@ -93,6 +118,8 @@
             <div class="image-display" id="monitor-back-display">
                 <p>画像がここに表示されます</p>
             </div>
+            <!-- タップエリア -->
+            <div class="tap-area-monitor" id="tap-area-monitor-back"></div>
             <button class="back-btn" id="back-from-monitor-back">戻る</button>
         </div>
     </div>
@@ -110,14 +137,35 @@
 
     <!-- 車両番号画面 -->
     <div id="vehicle-screen" class="screen">
-        <div class="vehicle-container">
-            <div class="vehicle-display" id="vehicle-display">
-                <div class="vehicle-number" id="vehicle-number">001</div>
+        <div class="train-container">
+            <div class="train-car-number-display">
+                <div class="train-car-frame">
+                    <div class="train-emblem">
+                        <div class="emblem-inner">
+                            <span class="emblem-text">GATANGO TRAIN</span>
+                        </div>
+                    </div>
+                    <div class="car-number-container">
+                        <div class="car-number" id="carNumber">3600</div>
+                        <div class="car-suffix">号車</div>
+                    </div>
+                    <div class="car-name">GATANGO</div>
+                </div>
             </div>
-            <button class="back-btn" id="back-from-vehicle">戻る</button>
+            
+            <!-- 全画面表示ボタン -->
+            <div class="fullscreen-button-container">
+                <button class="fullscreen-btn" id="fullscreen-btn">全画面表示</button>
+            </div>
+            
+            <!-- タップエリア -->
+            <div class="tap-area-vehicle" id="tap-area-vehicle"></div>
         </div>
     </div>
 
+    <!-- 接続状態インジケーター -->
+    <div class="connection-indicator" id="connection-indicator"></div>
+    
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>

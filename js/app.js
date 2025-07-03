@@ -18,6 +18,18 @@ class TabletApp {
             9: { name: 'ステップ9', monitorFront: 'step9-front.jpg', monitorBack: 'step9-back.jpg', vehicleNumber: '009' },
             10: { name: 'ステップ10', monitorFront: 'step10-front.jpg', monitorBack: 'step10-back.jpg', vehicleNumber: '010' }
         };
+        
+        // 豪華列車車両番号機能
+        this.maxCars = 3600;
+        this.autoDecreaseInterval = null;
+        
+        // タップカウンター
+        this.tapCounts = {
+            vehicle: 0,
+            monitorFront: 0,
+            monitorBack: 0
+        };
+        
         this.init();
     }
 
@@ -72,18 +84,21 @@ class TabletApp {
             this.deviceType = 'master';
             this.showScreen('master-screen');
             this.updateDeviceType();
+            this.setupMasterVehicleControls();
         });
 
         document.getElementById('monitor-front-btn').addEventListener('click', () => {
             this.deviceType = 'monitor-front';
             this.showScreen('monitor-front-screen');
             this.updateDeviceType();
+            this.setupMonitorTapHandler('front');
         });
 
         document.getElementById('monitor-back-btn').addEventListener('click', () => {
             this.deviceType = 'monitor-back';
             this.showScreen('monitor-back-screen');
             this.updateDeviceType();
+            this.setupMonitorTapHandler('back');
         });
 
         document.getElementById('camera-btn').addEventListener('click', () => {
@@ -96,11 +111,31 @@ class TabletApp {
             this.deviceType = 'vehicle';
             this.showScreen('vehicle-screen');
             this.updateDeviceType();
+            this.initializeVehicleDisplay();
+            this.setupVehicleTapHandler();
+            this.setupFullscreenHandler();
         });
 
         // 戻るボタン
         document.querySelectorAll('.back-btn').forEach(btn => {
             btn.addEventListener('click', () => {
+                // 車両番号画面またはマスター画面から戻る場合は自動減少を停止
+                if ((this.currentScreen === 'vehicle-screen' || this.currentScreen === 'master-screen') && this.stopAutoDecrease) {
+                    this.stopAutoDecrease();
+                }
+                
+                // 全画面表示中の場合は終了
+                const isFullscreen = document.fullscreenElement || 
+                                    document.webkitFullscreenElement || 
+                                    document.mozFullScreenElement || 
+                                    document.msFullscreenElement;
+                
+                if (isFullscreen) {
+                    this.exitFullscreen();
+                }
+                
+                // タップカウンターをリセット
+                this.resetTapCounts();
                 this.deviceType = null;
                 this.showScreen('selection-screen');
                 this.updateDeviceType();
@@ -346,6 +381,306 @@ class TabletApp {
         const vehicleDisplay = document.getElementById('vehicle-number');
         if (vehicleDisplay) {
             vehicleDisplay.textContent = number.padStart(3, '0');
+        }
+    }
+
+    // マスター画面の車両番号制御のセットアップ
+    setupMasterVehicleControls() {
+        const carInput = document.getElementById('carInput');
+        const decrementBtn = document.getElementById('decrementBtn');
+        const incrementBtn = document.getElementById('incrementBtn');
+        const applyBtn = document.getElementById('applyBtn');
+        const currentVehicleNumber = document.getElementById('currentVehicleNumber');
+        const autoStatus = document.getElementById('autoStatus');
+
+        if (!carInput || !decrementBtn || !incrementBtn || !applyBtn || !currentVehicleNumber || !autoStatus) {
+            return;
+        }
+
+        // 車両番号を更新する関数
+        const updateVehicleNumber = (number) => {
+            if (number < 1) number = 1;
+            
+            // 表示を更新
+            currentVehicleNumber.textContent = number;
+            carInput.value = number;
+            
+            // 車両番号画面に反映
+            this.updateVehicleDisplay(number);
+        };
+
+        // 自動的に番号を減少させる関数
+        const startAutoDecrease = () => {
+            if (this.autoDecreaseInterval) {
+                clearInterval(this.autoDecreaseInterval);
+            }
+            
+            autoStatus.textContent = '動作中';
+            autoStatus.className = 'auto-status active';
+            
+            this.autoDecreaseInterval = setInterval(() => {
+                const currentNumber = parseInt(carInput.value);
+                if (currentNumber > 1) {
+                    updateVehicleNumber(currentNumber - 1);
+                } else {
+                    // 1まで減少したら一旦停止
+                    this.stopAutoDecrease();
+                }
+            }, 1000);
+        };
+
+        // 自動減少を停止する関数
+        this.stopAutoDecrease = () => {
+            if (this.autoDecreaseInterval) {
+                clearInterval(this.autoDecreaseInterval);
+                this.autoDecreaseInterval = null;
+            }
+            autoStatus.textContent = '停止中';
+            autoStatus.className = 'auto-status';
+        };
+
+        // ボタンのイベントリスナー
+        decrementBtn.addEventListener('click', () => {
+            this.stopAutoDecrease();
+            const currentNumber = parseInt(carInput.value);
+            updateVehicleNumber(currentNumber - 1);
+        });
+
+        incrementBtn.addEventListener('click', () => {
+            this.stopAutoDecrease();
+            const currentNumber = parseInt(carInput.value);
+            updateVehicleNumber(currentNumber + 1);
+        });
+
+        applyBtn.addEventListener('click', () => {
+            this.stopAutoDecrease();
+            const inputNumber = parseInt(carInput.value);
+            updateVehicleNumber(inputNumber);
+            // 適用ボタンを押したら自動減少を開始
+            startAutoDecrease();
+        });
+
+        // 入力フィールドの変更イベント
+        carInput.addEventListener('change', () => {
+            this.stopAutoDecrease();
+            const inputNumber = parseInt(carInput.value);
+            if (isNaN(inputNumber) || inputNumber < 1) {
+                carInput.value = 1;
+            }
+        });
+
+        // 初期表示
+        updateVehicleNumber(this.maxCars);
+        // 自動減少を開始
+        startAutoDecrease();
+    }
+
+    // 車両番号画面の初期化
+    initializeVehicleDisplay() {
+        const carName = document.querySelector('.car-name');
+        if (carName) {
+            carName.textContent = 'GATANGO';
+        }
+        
+        // 現在の車両番号で表示更新
+        const currentNumber = this.getCurrentVehicleNumber();
+        this.updateVehicleDisplay(currentNumber);
+    }
+
+    // 現在の車両番号を取得
+    getCurrentVehicleNumber() {
+        const currentVehicleNumber = document.getElementById('currentVehicleNumber');
+        if (currentVehicleNumber) {
+            return parseInt(currentVehicleNumber.textContent) || this.maxCars;
+        }
+        return this.maxCars;
+    }
+
+    // 車両番号表示を更新
+    updateVehicleDisplay(number) {
+        const carNumber = document.getElementById('carNumber');
+        if (carNumber) {
+            carNumber.textContent = number;
+            this.updateDigitClass(number);
+        }
+    }
+
+    // 桁数に応じたクラスを更新する関数
+    updateDigitClass(number) {
+        const carNumber = document.getElementById('carNumber');
+        if (!carNumber) return;
+        
+        // 既存の桁数クラスをすべて削除
+        carNumber.classList.remove('digits-1', 'digits-2', 'digits-3', 'digits-4');
+        
+        // 桁数を計算
+        const digitCount = number.toString().length;
+        
+        // 桁数に応じたクラスを追加
+        carNumber.classList.add(`digits-${digitCount}`);
+    }
+
+    // 車両番号画面のタップハンドラー
+    setupVehicleTapHandler() {
+        const tapArea = document.getElementById('tap-area-vehicle');
+        if (!tapArea) return;
+
+        this.tapCounts.vehicle = 0;
+
+        tapArea.addEventListener('click', () => {
+            this.tapCounts.vehicle++;
+            
+            if (this.tapCounts.vehicle >= 5) {
+                // 5回タップで戻る
+                if (this.stopAutoDecrease) {
+                    this.stopAutoDecrease();
+                }
+                
+                // 全画面表示中の場合は終了
+                const isFullscreen = document.fullscreenElement || 
+                                    document.webkitFullscreenElement || 
+                                    document.mozFullScreenElement || 
+                                    document.msFullscreenElement;
+                
+                if (isFullscreen) {
+                    this.exitFullscreen();
+                }
+                
+                this.resetTapCounts();
+                this.deviceType = null;
+                this.showScreen('selection-screen');
+                this.updateDeviceType();
+            } else {
+                // 3秒以内に次のタップがない場合はカウンターをリセット
+                setTimeout(() => {
+                    this.tapCounts.vehicle = 0;
+                }, 3000);
+            }
+        });
+    }
+
+    // モニター画面のタップハンドラー
+    setupMonitorTapHandler(type) {
+        const tapArea = document.getElementById(`tap-area-monitor-${type}`);
+        if (!tapArea) return;
+
+        const tapKey = type === 'front' ? 'monitorFront' : 'monitorBack';
+        this.tapCounts[tapKey] = 0;
+
+        tapArea.addEventListener('click', () => {
+            this.tapCounts[tapKey]++;
+            
+            if (this.tapCounts[tapKey] >= 2) {
+                // 2回タップで戻る
+                this.resetTapCounts();
+                this.deviceType = null;
+                this.showScreen('selection-screen');
+                this.updateDeviceType();
+            } else {
+                // 3秒以内に次のタップがない場合はカウンターをリセット
+                setTimeout(() => {
+                    this.tapCounts[tapKey] = 0;
+                }, 3000);
+            }
+        });
+    }
+
+    // タップカウンターをリセット
+    resetTapCounts() {
+        this.tapCounts.vehicle = 0;
+        this.tapCounts.monitorFront = 0;
+        this.tapCounts.monitorBack = 0;
+    }
+
+    // 全画面表示機能のセットアップ
+    setupFullscreenHandler() {
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const fullscreenContainer = document.querySelector('.fullscreen-button-container');
+        const trainContainer = document.querySelector('.train-container');
+        
+        if (!fullscreenBtn || !fullscreenContainer || !trainContainer) return;
+
+        // 全画面表示ボタンのクリックイベント
+        fullscreenBtn.addEventListener('click', () => {
+            this.enterFullscreen();
+        });
+
+        // 全画面状態の変更を監視
+        document.addEventListener('fullscreenchange', () => {
+            this.handleFullscreenChange();
+        });
+
+        // 他のブラウザ対応
+        document.addEventListener('webkitfullscreenchange', () => {
+            this.handleFullscreenChange();
+        });
+
+        document.addEventListener('mozfullscreenchange', () => {
+            this.handleFullscreenChange();
+        });
+
+        document.addEventListener('MSFullscreenChange', () => {
+            this.handleFullscreenChange();
+        });
+    }
+
+    // 全画面表示に入る
+    enterFullscreen() {
+        const element = document.documentElement;
+        
+        if (element.requestFullscreen) {
+            element.requestFullscreen();
+        } else if (element.webkitRequestFullscreen) { // Safari
+            element.webkitRequestFullscreen();
+        } else if (element.mozRequestFullScreen) { // Firefox
+            element.mozRequestFullScreen();
+        } else if (element.msRequestFullscreen) { // IE/Edge
+            element.msRequestFullscreen();
+        }
+    }
+
+    // 全画面表示から抜ける
+    exitFullscreen() {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) { // Safari
+            document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) { // Firefox
+            document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) { // IE/Edge
+            document.msExitFullscreen();
+        }
+    }
+
+    // 全画面状態の変更を処理
+    handleFullscreenChange() {
+        const fullscreenContainer = document.querySelector('.fullscreen-button-container');
+        const trainContainer = document.querySelector('.train-container');
+        
+        if (!fullscreenContainer || !trainContainer) return;
+
+        // 全画面表示中かどうかを確認
+        const isFullscreen = document.fullscreenElement || 
+                            document.webkitFullscreenElement || 
+                            document.mozFullScreenElement || 
+                            document.msFullscreenElement;
+
+        if (isFullscreen) {
+            // 全画面表示中：ボタンを非表示にし、フルスクリーンモードを適用
+            fullscreenContainer.classList.add('fullscreen-hidden');
+            trainContainer.classList.add('fullscreen-mode');
+            
+            // 車両番号表示を再調整
+            const currentNumber = this.getCurrentVehicleNumber();
+            this.updateVehicleDisplay(currentNumber);
+        } else {
+            // 全画面表示終了：ボタンを再表示し、フルスクリーンモードを解除
+            fullscreenContainer.classList.remove('fullscreen-hidden');
+            trainContainer.classList.remove('fullscreen-mode');
+            
+            // 車両番号表示を再調整
+            const currentNumber = this.getCurrentVehicleNumber();
+            this.updateVehicleDisplay(currentNumber);
         }
     }
 
