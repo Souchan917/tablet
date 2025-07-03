@@ -123,6 +123,32 @@
                     </div>
                 </div>
                 <div class="control-group">
+                    <h3>シンプル通信テスト</h3>
+                    <div class="simple-communication-panel">
+                        <div class="communication-status">
+                            <div class="status-display">
+                                <span class="status-label">通信状態:</span>
+                                <span class="status-value" id="simple-comm-status">確認中...</span>
+                            </div>
+                            <div class="status-display">
+                                <span class="status-label">接続デバイス:</span>
+                                <span class="status-value" id="simple-comm-devices">0</span>
+                            </div>
+                        </div>
+                        <div class="communication-buttons">
+                            <button class="control-btn" id="simple-test-btn">テスト送信</button>
+                            <button class="control-btn" id="simple-ping-btn">Ping送信</button>
+                            <button class="control-btn" id="simple-refresh-btn">状態更新</button>
+                        </div>
+                        <div class="communication-log">
+                            <h4>通信ログ</h4>
+                            <div class="log-container" id="simple-comm-log">
+                                <p>通信ログが表示されます</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="control-group">
                     <h3>その他の制御</h3>
                     <p>その他のマスター制御機能がここに表示されます</p>
                 </div>
@@ -278,6 +304,7 @@
     
     <!-- アプリケーションのJavaScript -->
     <script src="js/firebase-config.js"></script>
+    <script src="js/simple-communication.js"></script>
     <script src="js/connection-manager.js"></script>
     <script src="js/app.js"></script>
 </body>

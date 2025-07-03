@@ -1403,6 +1403,128 @@ body {
     }
 }
 
+/* シンプル通信パネル */
+.simple-communication-panel {
+    background: #f0f8ff;
+    border-radius: 8px;
+    padding: 1rem;
+    border-left: 4px solid #20c997;
+    margin-top: 0.5rem;
+}
+
+.communication-status {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.status-display {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.status-label {
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: 600;
+}
+
+.status-value {
+    font-size: 1rem;
+    color: #333;
+    font-weight: bold;
+    padding: 0.2rem 0.5rem;
+    background: white;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
+.communication-buttons {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.communication-buttons .control-btn {
+    background: linear-gradient(45deg, #20c997, #17a2b8);
+    color: white;
+    border: none;
+    font-size: 0.9rem;
+    padding: 8px 16px;
+    transition: all 0.3s ease;
+}
+
+.communication-buttons .control-btn:hover {
+    background: linear-gradient(45deg, #17a2b8, #138496);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.communication-log {
+    margin-top: 1rem;
+}
+
+.communication-log h4 {
+    margin: 0 0 0.5rem 0;
+    color: #333;
+    font-size: 1rem;
+}
+
+.log-container {
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0.5rem;
+    background: white;
+    font-family: monospace;
+    font-size: 0.8rem;
+}
+
+.log-entry {
+    margin-bottom: 0.3rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    border-left: 3px solid #20c997;
+    background: #f8f9fa;
+}
+
+.log-entry.sent {
+    border-left-color: #007bff;
+    background: #e3f2fd;
+}
+
+.log-entry.received {
+    border-left-color: #28a745;
+    background: #e8f5e8;
+}
+
+.log-entry.error {
+    border-left-color: #dc3545;
+    background: #ffeaea;
+}
+
+.log-timestamp {
+    color: #666;
+    font-size: 0.7rem;
+    margin-right: 0.5rem;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    .communication-status {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .communication-buttons {
+        flex-direction: column;
+    }
+}
+
 /* タップエリア */
 .tap-area-vehicle {
     position: fixed;

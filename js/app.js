@@ -301,6 +301,11 @@ class TabletApp {
             this.renderTeamGrid();
             this.updateDisplays();
             this.showNotification('全チームを次のステップに進めました');
+            
+            // シンプル通信で全チーム進行通知を送信
+            this.teams.forEach(team => {
+                this.sendTeamProgressNotification(team.id, team.currentStep);
+            });
         }
     }
 
@@ -320,6 +325,11 @@ class TabletApp {
             this.renderTeamGrid();
             this.updateDisplays();
             this.showNotification('全チームを前のステップに戻しました');
+            
+            // シンプル通信で全チーム進行通知を送信
+            this.teams.forEach(team => {
+                this.sendTeamProgressNotification(team.id, team.currentStep);
+            });
         }
     }
 
@@ -334,6 +344,11 @@ class TabletApp {
         this.renderTeamGrid();
         this.updateDisplays();
         this.showNotification('全チームをリセットしました');
+        
+        // シンプル通信で全チームリセット通知を送信
+        this.teams.forEach(team => {
+            this.sendTeamProgressNotification(team.id, 1);
+        });
     }
 
     // 個別チームのステップ変更
@@ -349,6 +364,9 @@ class TabletApp {
             this.renderTeamGrid();
             this.updateDisplays();
             this.showNotification(`${team.name}をステップ${newStep}に変更しました`);
+            
+            // シンプル通信でチーム進行通知を送信
+            this.sendTeamProgressNotification(teamId, newStep);
         }
     }
 
@@ -492,6 +510,9 @@ class TabletApp {
         
         // 接続監視機能の初期化
         this.setupConnectionMonitoring();
+        
+        // シンプル通信機能の初期化
+        this.setupSimpleCommunication();
     }
 
     // 車両番号画面の初期化
@@ -545,6 +566,9 @@ class TabletApp {
                 deviceId: this.vehicleDeviceId
             });
         }
+        
+        // シンプル通信で車両番号変更通知を送信
+        this.sendVehicleNumberNotification(number);
     }
 
     // 桁数に応じたクラスを更新する関数
@@ -857,6 +881,220 @@ class TabletApp {
         } catch (error) {
             console.error('通信テストエラー:', error);
             this.showNotification('通信テストでエラーが発生しました', 'error');
+        }
+    }
+
+    // シンプル通信機能の設定
+    setupSimpleCommunication() {
+        const testBtn = document.getElementById('simple-test-btn');
+        const pingBtn = document.getElementById('simple-ping-btn');
+        const refreshBtn = document.getElementById('simple-refresh-btn');
+        
+        if (!testBtn || !pingBtn || !refreshBtn) {
+            console.log('シンプル通信機能の要素が見つかりません');
+            return;
+        }
+
+        // 通信ログ機能
+        this.communicationLogs = [];
+        this.maxLogEntries = 50;
+
+        // ボタンイベントの設定
+        testBtn.addEventListener('click', () => {
+            this.sendSimpleTestMessage();
+        });
+
+        pingBtn.addEventListener('click', () => {
+            this.sendSimplePing();
+        });
+
+        refreshBtn.addEventListener('click', () => {
+            this.updateSimpleCommunicationStatus();
+        });
+
+        // メッセージリスナーの設定
+        this.setupSimpleMessageListeners();
+
+        // 定期的な状態更新
+        this.simpleCommunicationUpdateInterval = setInterval(() => {
+            this.updateSimpleCommunicationStatus();
+        }, 10000); // 10秒ごと
+
+        // 初回表示
+        setTimeout(() => {
+            this.updateSimpleCommunicationStatus();
+        }, 2000);
+        
+        console.log('シンプル通信機能初期化完了');
+    }
+
+    // シンプルメッセージリスナーの設定
+    setupSimpleMessageListeners() {
+        if (!window.simpleCommunication) {
+            setTimeout(() => this.setupSimpleMessageListeners(), 1000);
+            return;
+        }
+
+        // テストメッセージ受信
+        window.simpleCommunication.addMessageListener('test', (data, senderId) => {
+            this.addCommunicationLog(`テストメッセージ受信: ${data.message || 'メッセージなし'}`, 'received');
+        });
+
+        // Ping受信
+        window.simpleCommunication.addMessageListener('ping', (data, senderId) => {
+            this.addCommunicationLog(`Ping受信: ${senderId}`, 'received');
+        });
+
+        // Pong受信
+        window.simpleCommunication.addMessageListener('pong', (data, senderId) => {
+            this.addCommunicationLog(`Pong受信: ${senderId}`, 'received');
+        });
+
+        // 車両番号変更通知
+        window.simpleCommunication.addMessageListener('vehicle_number', (data, senderId) => {
+            this.addCommunicationLog(`車両番号変更通知: ${data.number}`, 'received');
+            
+            // 車両番号画面が表示されている場合は更新
+            if (document.getElementById('vehicle-screen').style.display !== 'none') {
+                this.updateVehicleDisplay(data.number);
+            }
+        });
+
+        // チーム進行通知
+        window.simpleCommunication.addMessageListener('team_progress', (data, senderId) => {
+            this.addCommunicationLog(`チーム進行通知: ${data.teamId} -> ${data.step}`, 'received');
+        });
+
+        console.log('シンプルメッセージリスナー設定完了');
+    }
+
+    // テストメッセージ送信
+    async sendSimpleTestMessage() {
+        if (!window.simpleCommunication || !window.simpleCommunication.isConnected) {
+            this.showNotification('Firebase接続が必要です', 'error');
+            return;
+        }
+
+        try {
+            const message = 'テスト通信: ' + new Date().toLocaleTimeString();
+            await window.simpleCommunication.sendMessage('test', { message });
+            this.addCommunicationLog(`テストメッセージ送信: ${message}`, 'sent');
+            this.showNotification('テストメッセージを送信しました', 'success');
+        } catch (error) {
+            console.error('テストメッセージ送信エラー:', error);
+            this.addCommunicationLog(`テストメッセージ送信失敗: ${error.message}`, 'error');
+            this.showNotification('テストメッセージの送信に失敗しました', 'error');
+        }
+    }
+
+    // Ping送信
+    async sendSimplePing() {
+        if (!window.simpleCommunication || !window.simpleCommunication.isConnected) {
+            this.showNotification('Firebase接続が必要です', 'error');
+            return;
+        }
+
+        try {
+            await window.simpleCommunication.ping();
+            this.addCommunicationLog('Ping送信完了', 'sent');
+            this.showNotification('Pingを送信しました', 'success');
+        } catch (error) {
+            console.error('Ping送信エラー:', error);
+            this.addCommunicationLog(`Ping送信失敗: ${error.message}`, 'error');
+            this.showNotification('Pingの送信に失敗しました', 'error');
+        }
+    }
+
+    // シンプル通信状態更新
+    async updateSimpleCommunicationStatus() {
+        const statusEl = document.getElementById('simple-comm-status');
+        const devicesEl = document.getElementById('simple-comm-devices');
+        
+        if (!statusEl || !devicesEl) return;
+
+        try {
+            if (window.simpleCommunication) {
+                const isConnected = window.simpleCommunication.isConnected;
+                statusEl.textContent = isConnected ? '接続中' : '切断中';
+                statusEl.style.color = isConnected ? '#28a745' : '#dc3545';
+
+                if (isConnected) {
+                    const devices = await window.simpleCommunication.getConnectedDevices();
+                    const otherDevices = devices.filter(d => d.id !== window.simpleCommunication.deviceId);
+                    devicesEl.textContent = otherDevices.length.toString();
+                } else {
+                    devicesEl.textContent = '0';
+                }
+            } else {
+                statusEl.textContent = '初期化中';
+                statusEl.style.color = '#ffc107';
+                devicesEl.textContent = '0';
+            }
+        } catch (error) {
+            console.error('シンプル通信状態更新エラー:', error);
+            statusEl.textContent = 'エラー';
+            statusEl.style.color = '#dc3545';
+            devicesEl.textContent = '0';
+        }
+    }
+
+    // 通信ログ追加
+    addCommunicationLog(message, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString();
+        const logEntry = {
+            timestamp,
+            message,
+            type
+        };
+        
+        this.communicationLogs.push(logEntry);
+        
+        // ログ数制限
+        if (this.communicationLogs.length > this.maxLogEntries) {
+            this.communicationLogs = this.communicationLogs.slice(-this.maxLogEntries);
+        }
+        
+        this.updateCommunicationLogDisplay();
+    }
+
+    // 通信ログ表示更新
+    updateCommunicationLogDisplay() {
+        const logContainer = document.getElementById('simple-comm-log');
+        if (!logContainer) return;
+
+        if (this.communicationLogs.length === 0) {
+            logContainer.innerHTML = '<p>通信ログがありません</p>';
+            return;
+        }
+
+        const logHTML = this.communicationLogs.slice(-10).map(entry => {
+            return `
+                <div class="log-entry ${entry.type}">
+                    <span class="log-timestamp">${entry.timestamp}</span>
+                    <span class="log-message">${entry.message}</span>
+                </div>
+            `;
+        }).join('');
+
+        logContainer.innerHTML = logHTML;
+        
+        // 最新ログまでスクロール
+        logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    // 車両番号変更通知の送信
+    sendVehicleNumberNotification(number) {
+        if (window.simpleCommunication && window.simpleCommunication.isConnected) {
+            window.simpleCommunication.sendMessage('vehicle_number', { number });
+            this.addCommunicationLog(`車両番号変更通知送信: ${number}`, 'sent');
+        }
+    }
+
+    // チーム進行通知の送信
+    sendTeamProgressNotification(teamId, step) {
+        if (window.simpleCommunication && window.simpleCommunication.isConnected) {
+            window.simpleCommunication.sendMessage('team_progress', { teamId, step });
+            this.addCommunicationLog(`チーム進行通知送信: ${teamId} -> ${step}`, 'sent');
         }
     }
 
@@ -1879,12 +2117,168 @@ class TabletApp {
             }
         }, 5000);
     }
+
+    // 接続状態確認
+    checkConnectionStatus() {
+        const connectionStatus = {
+            firebase: {
+                connected: false,
+                error: null
+            },
+            simpleCommunication: {
+                connected: false,
+                deviceId: null,
+                error: null
+            },
+            connectionManager: {
+                connected: false,
+                deviceId: null,
+                error: null
+            }
+        };
+
+        try {
+            // Firebase接続確認
+            if (typeof database !== 'undefined' && database) {
+                connectionStatus.firebase.connected = true;
+            } else {
+                connectionStatus.firebase.error = 'Firebase未初期化';
+            }
+
+            // シンプル通信確認
+            if (window.simpleCommunication) {
+                connectionStatus.simpleCommunication.connected = window.simpleCommunication.isConnected;
+                connectionStatus.simpleCommunication.deviceId = window.simpleCommunication.deviceId;
+            } else {
+                connectionStatus.simpleCommunication.error = 'シンプル通信未初期化';
+            }
+
+            // 接続管理システム確認
+            if (window.connectionManager) {
+                connectionStatus.connectionManager.connected = window.connectionManager.isFirebaseConnected;
+                connectionStatus.connectionManager.deviceId = window.connectionManager.deviceId;
+            } else {
+                connectionStatus.connectionManager.error = '接続管理システム未初期化';
+            }
+
+        } catch (error) {
+            console.error('接続状態確認エラー:', error);
+        }
+
+        return connectionStatus;
+    }
 }
 
 // アプリケーション初期化
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new TabletApp();
+
+    // グローバルデバッグ関数
+    window.debugApp = {
+        // 接続状態確認
+        status: () => {
+            if (app) {
+                return app.checkConnectionStatus();
+            } else {
+                console.log('アプリケーションが初期化されていません');
+                return null;
+            }
+        },
+        
+        // 通信テスト
+        testCommunication: () => {
+            if (app && window.simpleCommunication) {
+                return window.simpleCommunication.testCommunication();
+            } else {
+                console.log('通信システムが初期化されていません');
+                return null;
+            }
+        },
+        
+        // デバイス一覧
+        devices: () => {
+            if (window.simpleCommunication) {
+                return window.simpleCommunication.getConnectedDevices();
+            } else {
+                console.log('通信システムが初期化されていません');
+                return [];
+            }
+        },
+        
+        // 車両番号送信テスト
+        sendVehicleNumber: (number) => {
+            if (app) {
+                app.sendVehicleNumberNotification(number);
+                console.log(`車両番号${number}を送信しました`);
+            } else {
+                console.log('アプリケーションが初期化されていません');
+            }
+        },
+        
+        // チーム進行通知テスト
+        sendTeamProgress: (teamId, step) => {
+            if (app) {
+                app.sendTeamProgressNotification(teamId, step);
+                console.log(`チーム${teamId}のステップ${step}を送信しました`);
+            } else {
+                console.log('アプリケーションが初期化されていません');
+            }
+        },
+        
+        // 全システム状態確認
+        checkAll: () => {
+            console.log('=== 全システム状態確認 ===');
+            
+            // Firebase状態
+            console.log('Firebase:', typeof database !== 'undefined' && database ? '✓ 接続済み' : '✗ 未接続');
+            
+            // シンプル通信
+            if (window.simpleCommunication) {
+                console.log('シンプル通信:', window.simpleCommunication.isConnected ? '✓ 接続済み' : '✗ 未接続');
+                console.log('  デバイスID:', window.simpleCommunication.deviceId);
+            } else {
+                console.log('シンプル通信: ✗ 未初期化');
+            }
+            
+            // 接続管理システム
+            if (window.connectionManager) {
+                console.log('接続管理システム:', window.connectionManager.isFirebaseConnected ? '✓ 接続済み' : '✗ 未接続');
+                console.log('  デバイスID:', window.connectionManager.deviceId);
+            } else {
+                console.log('接続管理システム: ✗ 未初期化');
+            }
+            
+            // アプリケーション
+            console.log('アプリケーション:', app ? '✓ 初期化済み' : '✗ 未初期化');
+            
+            return {
+                firebase: typeof database !== 'undefined' && database,
+                simpleCommunication: window.simpleCommunication?.isConnected || false,
+                connectionManager: window.connectionManager?.isFirebaseConnected || false,
+                app: !!app
+            };
+        },
+        
+        // ヘルプ表示
+        help: () => {
+            console.log('=== デバッグコマンド ===');
+            console.log('debugApp.status()              - 接続状態確認');
+            console.log('debugApp.testCommunication()   - 通信テスト');
+            console.log('debugApp.devices()             - 接続デバイス一覧');
+            console.log('debugApp.sendVehicleNumber(n)  - 車両番号送信');
+            console.log('debugApp.sendTeamProgress(t,s) - チーム進行送信');
+            console.log('debugApp.checkAll()            - 全システム状態確認');
+            console.log('debugApp.help()                - このヘルプ');
+        }
+    };
+    
+    // 初期化完了通知
+    setTimeout(() => {
+        console.log('🚀 システム初期化完了');
+        console.log('デバッグコマンド: debugApp.help()');
+        console.log('シンプル通信: testComm.test()');
+    }, 3000);
 });
 
 // ページ離脱時の処理
