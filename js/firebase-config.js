@@ -1,84 +1,85 @@
 // Firebase設定
-// 注意: 実際の本番環境では、これらの設定値を環境変数や設定ファイルから読み込むようにしてください
 const firebaseConfig = {
-    // ここにFirebaseプロジェクトの設定を入力してください
-    apiKey: "your-api-key-here",
-    authDomain: "your-project.firebaseapp.com",
-    databaseURL: "https://your-project-default-rtdb.firebaseio.com/",
-    projectId: "your-project-id",
-    storageBucket: "your-project.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "your-app-id"
+    apiKey: "AIzaSyDwSOsoNTIj0nq9I2kdH11MjUjbUv9qhFk",
+    authDomain: "gatango-3ea57.firebaseapp.com",
+    databaseURL: "https://gatango-3ea57-default-rtdb.firebaseio.com/",
+    projectId: "gatango-3ea57",
+    storageBucket: "gatango-3ea57.firebasestorage.app",
+    messagingSenderId: "431233584497",
+    appId: "1:431233584497:web:75ee10ee13c7691d6e3ad0",
+    measurementId: "G-4134JZPRFQ"
 };
 
 // Firebase初期化
-let app;
-let database;
+let database = null;
+let isConnected = false;
 
-try {
-    app = firebase.initializeApp(firebaseConfig);
-    database = firebase.database();
-    console.log('Firebase初期化完了');
-} catch (error) {
-    console.error('Firebase初期化エラー:', error);
-}
-
-// データベース参照
-const dbRef = {
-    // デバイス管理
-    devices: database.ref('devices'),
-    
-    // 公演状態
-    showState: database.ref('showState'),
-    
-    // 現在のシーン
-    currentScene: database.ref('currentScene'),
-    
-    // システム設定
-    settings: database.ref('settings')
-};
-
-// Firebase接続状態監視
-database.ref('.info/connected').on('value', (snapshot) => {
-    const connected = snapshot.val();
-    const statusElement = document.getElementById('connectionStatus');
-    
-    if (connected) {
-        statusElement.textContent = 'オンライン';
-        statusElement.className = 'status online';
-        console.log('Firebaseに接続されました');
-    } else {
-        statusElement.textContent = 'オフライン';
-        statusElement.className = 'status offline';
-        console.log('Firebaseから切断されました');
-    }
-});
-
-// エラーハンドリング
-window.addEventListener('error', (e) => {
-    if (e.error && e.error.message.includes('firebase')) {
-        console.error('Firebase関連エラー:', e.error);
+// Firebase接続関数
+function initializeFirebase() {
+    try {
+        // Firebase初期化
+        firebase.initializeApp(firebaseConfig);
+        database = firebase.database();
         
-        // ユーザーに分かりやすいエラーメッセージを表示
-        const statusElement = document.getElementById('connectionStatus');
-        statusElement.textContent = '接続エラー';
-        statusElement.className = 'status offline';
-    }
-});
-
-// Firebase設定状況の確認
-function checkFirebaseConfig() {
-    const isConfigured = firebaseConfig.apiKey !== "your-api-key-here";
-    
-    if (!isConfigured) {
-        console.warn('Firebase設定が未完了です。js/firebase-config.jsファイルを編集してください。');
+        // 接続状態を監視
+        const connectedRef = database.ref('.info/connected');
+        connectedRef.on('value', (snapshot) => {
+            isConnected = snapshot.val() === true;
+            updateConnectionStatus();
+        });
         
-        // 設定未完了の場合のダミーデータでテスト可能にする
+        console.log('Firebase初期化成功');
+        return true;
+    } catch (error) {
+        console.error('Firebase初期化エラー:', error);
         return false;
     }
-    
-    return true;
 }
 
-// 設定状況をエクスポート
-window.firebaseConfigured = checkFirebaseConfig(); 
+// 接続状態表示の更新
+function updateConnectionStatus() {
+    let statusElement = document.getElementById('connection-status');
+    if (!statusElement) {
+        statusElement = document.createElement('div');
+        statusElement.id = 'connection-status';
+        statusElement.className = 'connection-status';
+        document.body.appendChild(statusElement);
+    }
+    
+    if (isConnected) {
+        statusElement.textContent = '接続中';
+        statusElement.className = 'connection-status connected';
+    } else {
+        statusElement.textContent = '切断中';
+        statusElement.className = 'connection-status disconnected';
+    }
+}
+
+// データベース操作関数
+function writeData(path, data) {
+    if (database && isConnected) {
+        return database.ref(path).set(data);
+    } else {
+        console.warn('Firebase未接続 - ローカルモードで動作中');
+        return Promise.resolve();
+    }
+}
+
+function readData(path, callback) {
+    if (database && isConnected) {
+        database.ref(path).on('value', callback);
+    } else {
+        console.warn('Firebase未接続 - ローカルモードで動作中');
+    }
+}
+
+function removeListener(path, callback) {
+    if (database && isConnected) {
+        database.ref(path).off('value', callback);
+    }
+}
+
+// 初期化実行
+document.addEventListener('DOMContentLoaded', () => {
+    initializeFirebase();
+}); 

@@ -1,319 +1,461 @@
-// メインアプリケーションクラス
-class MysteryShowApp {
+// アプリケーションメインロジック
+class TabletApp {
     constructor() {
-        this.deviceManager = null;
-        this.sceneController = null;
-        this.isInitialized = false;
-        
-        // アプリケーション初期化
+        this.currentScreen = 'selection-screen';
+        this.deviceType = null;
+        this.teams = [];
+        this.currentStep = 1;
+        this.maxSteps = 10; // 最大ステップ数（必要に応じて変更）
+        this.steps = {
+            1: { name: '開始前', monitorFront: 'step1-front.jpg', monitorBack: 'step1-back.jpg', vehicleNumber: '001' },
+            2: { name: 'ステップ2', monitorFront: 'step2-front.jpg', monitorBack: 'step2-back.jpg', vehicleNumber: '002' },
+            3: { name: 'ステップ3', monitorFront: 'step3-front.jpg', monitorBack: 'step3-back.jpg', vehicleNumber: '003' },
+            4: { name: 'ステップ4', monitorFront: 'step4-front.jpg', monitorBack: 'step4-back.jpg', vehicleNumber: '004' },
+            5: { name: 'ステップ5', monitorFront: 'step5-front.jpg', monitorBack: 'step5-back.jpg', vehicleNumber: '005' },
+            6: { name: 'ステップ6', monitorFront: 'step6-front.jpg', monitorBack: 'step6-back.jpg', vehicleNumber: '006' },
+            7: { name: 'ステップ7', monitorFront: 'step7-front.jpg', monitorBack: 'step7-back.jpg', vehicleNumber: '007' },
+            8: { name: 'ステップ8', monitorFront: 'step8-front.jpg', monitorBack: 'step8-back.jpg', vehicleNumber: '008' },
+            9: { name: 'ステップ9', monitorFront: 'step9-front.jpg', monitorBack: 'step9-back.jpg', vehicleNumber: '009' },
+            10: { name: 'ステップ10', monitorFront: 'step10-front.jpg', monitorBack: 'step10-back.jpg', vehicleNumber: '010' }
+        };
         this.init();
     }
-    
-    // アプリケーション初期化
-    async init() {
-        try {
-            window.logger.info('アプリケーション初期化開始');
-            
-            // DOM読み込み完了を待機
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', () => this.initializeComponents());
-            } else {
-                this.initializeComponents();
-            }
-            
-        } catch (error) {
-            window.errorHandler.handleError(error, 'アプリケーション初期化');
+
+    init() {
+        this.initializeTeams();
+        this.setupEventListeners();
+        this.setupFirebaseListeners();
+        this.showScreen('selection-screen');
+    }
+
+    // チーム初期化
+    initializeTeams() {
+        this.teams = [];
+        for (let i = 1; i <= 12; i++) {
+            this.teams.push({
+                id: i,
+                name: `チーム${i}`,
+                currentStep: 1,
+                isActive: false
+            });
         }
     }
-    
-    // コンポーネント初期化
-    initializeComponents() {
-        try {
-            // デバイスマネージャー初期化
-            this.deviceManager = new DeviceManager();
-            window.deviceManager = this.deviceManager;
-            
-            // シーンコントローラー初期化
-            this.sceneController = new SceneController();
-            window.sceneController = this.sceneController;
-            
-            // 初期状態設定
-            this.setupInitialState();
-            
-            // アプリケーション完了通知
-            this.onAppReady();
-            
-            this.isInitialized = true;
-            window.logger.info('アプリケーション初期化完了');
-            
-        } catch (error) {
-            window.errorHandler.handleError(error, 'コンポーネント初期化');
+
+    // 画面遷移
+    showScreen(screenId) {
+        // 現在のactive画面を非表示
+        const activeScreen = document.querySelector('.screen.active');
+        if (activeScreen) {
+            activeScreen.classList.remove('active');
+        }
+
+        // 新しい画面を表示
+        const newScreen = document.getElementById(screenId);
+        if (newScreen) {
+            newScreen.classList.add('active');
+            this.currentScreen = screenId;
         }
     }
-    
-    // 初期状態設定
-    setupInitialState() {
-        // デフォルト値を設定
-        const deviceNameInput = document.getElementById('deviceName');
-        const deviceTypeSelect = document.getElementById('deviceType');
-        
-        if (deviceNameInput) {
-            deviceNameInput.value = window.config.get('defaults.deviceName') || 'タブレット';
-        }
-        
-        if (deviceTypeSelect) {
-            deviceTypeSelect.value = window.config.get('defaults.deviceType') || 'tablet';
-        }
-        
-        // 初期シーンの表示
-        this.sceneController.displayScene(0);
-        
-        // Firebase設定状況の確認と表示
-        this.checkFirebaseStatus();
-    }
-    
-    // Firebase状況確認
-    checkFirebaseStatus() {
-        if (!window.firebaseConfigured) {
-            this.showFirebaseConfigNotice();
-        }
-    }
-    
-    // Firebase設定通知表示
-    showFirebaseConfigNotice() {
-        const notice = document.createElement('div');
-        notice.className = 'firebase-notice';
-        notice.innerHTML = `
-            <div class="notice-content">
-                <h3>⚠️ Firebase設定が必要です</h3>
-                <p>複数端末の同期を行うには、Firebase設定が必要です。</p>
-                <p>現在はテストモードで動作しています。</p>
-                <details>
-                    <summary>設定方法</summary>
-                    <ol>
-                        <li>Firebase Console (https://console.firebase.google.com/) でプロジェクトを作成</li>
-                        <li>Realtime Database を有効化</li>
-                        <li>js/firebase-config.js ファイルの設定値を更新</li>
-                    </ol>
-                </details>
-                <button onclick="this.parentElement.parentElement.remove()">理解しました</button>
-            </div>
-        `;
-        notice.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: rgba(255, 193, 7, 0.95);
-            color: #333;
-            padding: 15px;
-            z-index: 2000;
-            border-bottom: 3px solid #ffc107;
-        `;
-        
-        const noticeContent = notice.querySelector('.notice-content');
-        noticeContent.style.cssText = `
-            max-width: 800px;
-            margin: 0 auto;
-            text-align: center;
-        `;
-        
-        document.body.insertBefore(notice, document.body.firstChild);
-    }
-    
-    // アプリケーション準備完了時の処理
-    onAppReady() {
-        // ローディング画面を隠す
-        const loadingScreen = document.querySelector('.loading-screen');
-        if (loadingScreen) {
-            setTimeout(() => {
-                loadingScreen.style.opacity = '0';
-                setTimeout(() => {
-                    loadingScreen.style.display = 'none';
-                }, 500);
-            }, 1000);
-        }
-        
-        // 準備完了イベントを発火
-        const readyEvent = new CustomEvent('mysteryShowReady', {
-            detail: {
-                deviceManager: this.deviceManager,
-                sceneController: this.sceneController
+
+    // イベントリスナーの設定
+    setupEventListeners() {
+        // 選択画面のボタン
+        document.getElementById('staff-btn').addEventListener('click', () => {
+            this.deviceType = 'staff';
+            this.showScreen('staff-screen');
+            this.renderTeamGrid();
+            this.updateCurrentStepDisplay();
+            this.updateDeviceType();
+        });
+
+        document.getElementById('master-btn').addEventListener('click', () => {
+            this.deviceType = 'master';
+            this.showScreen('master-screen');
+            this.updateDeviceType();
+        });
+
+        document.getElementById('monitor-front-btn').addEventListener('click', () => {
+            this.deviceType = 'monitor-front';
+            this.showScreen('monitor-front-screen');
+            this.updateDeviceType();
+        });
+
+        document.getElementById('monitor-back-btn').addEventListener('click', () => {
+            this.deviceType = 'monitor-back';
+            this.showScreen('monitor-back-screen');
+            this.updateDeviceType();
+        });
+
+        document.getElementById('camera-btn').addEventListener('click', () => {
+            this.deviceType = 'camera';
+            this.showScreen('camera-screen');
+            this.updateDeviceType();
+        });
+
+        document.getElementById('vehicle-btn').addEventListener('click', () => {
+            this.deviceType = 'vehicle';
+            this.showScreen('vehicle-screen');
+            this.updateDeviceType();
+        });
+
+        // 戻るボタン
+        document.querySelectorAll('.back-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.deviceType = null;
+                this.showScreen('selection-screen');
+                this.updateDeviceType();
+            });
+        });
+
+        // スタッフ制御ボタン
+        document.getElementById('next-all-teams').addEventListener('click', () => {
+            this.nextAllTeams();
+        });
+
+        document.getElementById('prev-all-teams').addEventListener('click', () => {
+            this.prevAllTeams();
+        });
+
+        document.getElementById('reset-all-teams').addEventListener('click', () => {
+            this.resetAllTeams();
+        });
+
+        // 手動制御ボタン
+        document.getElementById('manual-monitor-front').addEventListener('click', () => {
+            this.sendCommand('monitor-front', 'show-image', { imageUrl: 'sample-image.jpg' });
+        });
+
+        document.getElementById('manual-monitor-back').addEventListener('click', () => {
+            this.sendCommand('monitor-back', 'show-image', { imageUrl: 'sample-image.jpg' });
+        });
+
+        document.getElementById('manual-vehicle-send').addEventListener('click', () => {
+            const vehicleNumber = document.getElementById('manual-vehicle-input').value;
+            if (vehicleNumber) {
+                this.sendCommand('vehicle', 'update-number', { number: vehicleNumber });
             }
         });
-        document.dispatchEvent(readyEvent);
-        
-        window.logger.info('謎解き公演システム準備完了');
     }
-    
-    // デバイス接続状態の取得
-    getConnectionStatus() {
-        return {
-            isConnected: this.deviceManager ? this.deviceManager.isOnline : false,
-            deviceInfo: this.deviceManager ? this.deviceManager.getDeviceInfo() : null,
-            connectedDevices: this.deviceManager ? this.deviceManager.getConnectedDevices() : []
-        };
-    }
-    
-    // 現在のシーン情報取得
-    getCurrentSceneInfo() {
-        return {
-            currentScene: this.sceneController ? this.sceneController.getCurrentScene() : 0,
-            showState: this.sceneController ? this.sceneController.getShowState() : 'stopped',
-            sceneData: this.sceneController ? this.sceneController.getSceneData(this.sceneController.getCurrentScene()) : null
-        };
-    }
-    
-    // システム状態取得
-    getSystemStatus() {
-        return {
-            isInitialized: this.isInitialized,
-            firebaseConfigured: window.firebaseConfigured,
-            connection: this.getConnectionStatus(),
-            scene: this.getCurrentSceneInfo(),
-            config: window.config.getAll()
-        };
-    }
-    
-    // アプリケーション終了処理
-    shutdown() {
-        try {
-            if (this.deviceManager) {
-                this.deviceManager.disconnect();
-            }
-            
-            window.logger.info('アプリケーション終了');
-        } catch (error) {
-            window.errorHandler.handleError(error, 'アプリケーション終了');
-        }
-    }
-}
 
-// キーボードショートカット
-class KeyboardShortcuts {
-    constructor(app) {
-        this.app = app;
-        this.setupShortcuts();
+    // Firebase リスナーの設定
+    setupFirebaseListeners() {
+        // デバイスタイプ別のリスナー設定
+        this.setupMonitorListeners();
+        this.setupVehicleListeners();
+        this.setupCameraListeners();
     }
-    
-    setupShortcuts() {
-        document.addEventListener('keydown', (e) => {
-            // Ctrl/Cmd + 数字でシーン切り替え（管理者のみ）
-            if ((e.ctrlKey || e.metaKey) && e.key >= '0' && e.key <= '5') {
-                e.preventDefault();
-                const sceneId = parseInt(e.key);
-                if (this.app.sceneController && this.app.deviceManager) {
-                    const deviceInfo = this.app.deviceManager.getDeviceInfo();
-                    if (deviceInfo.type === 'admin') {
-                        this.app.sceneController.changeScene(sceneId);
-                    }
+
+    // モニター用リスナー
+    setupMonitorListeners() {
+        // モニター前の制御を監視
+        readData('commands/monitor-front', (snapshot) => {
+            if (this.deviceType === 'monitor-front') {
+                const commandData = snapshot.val();
+                if (commandData && commandData.command === 'show-image') {
+                    this.displayImage('monitor-front-display', commandData.data.imageUrl);
                 }
             }
-            
-            // Ctrl/Cmd + Shift + S でシステム状態をコンソールに出力
-            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'S') {
-                e.preventDefault();
-                console.log('システム状態:', this.app.getSystemStatus());
-            }
-            
-            // F11 でフルスクリーン切り替え
-            if (e.key === 'F11') {
-                e.preventDefault();
-                this.toggleFullscreen();
+        });
+
+        // モニター後の制御を監視
+        readData('commands/monitor-back', (snapshot) => {
+            if (this.deviceType === 'monitor-back') {
+                const commandData = snapshot.val();
+                if (commandData && commandData.command === 'show-image') {
+                    this.displayImage('monitor-back-display', commandData.data.imageUrl);
+                }
             }
         });
     }
-    
-    toggleFullscreen() {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen();
-        } else {
-            document.exitFullscreen();
-        }
-    }
-}
 
-// 開発者向けコンソール関数
-function setupDevConsole() {
-    if (window.config.get('ui.showDebugInfo')) {
-        window.mysteryShow = {
-            getStatus: () => window.app.getSystemStatus(),
-            switchScene: (sceneId) => window.sceneController.changeScene(sceneId),
-            getDevices: () => window.deviceManager.getConnectedDevices(),
-            getConfig: () => window.config.getAll(),
-            resetConfig: () => window.config.reset()
+    // 車両番号用リスナー
+    setupVehicleListeners() {
+        readData('commands/vehicle', (snapshot) => {
+            if (this.deviceType === 'vehicle') {
+                const commandData = snapshot.val();
+                if (commandData && commandData.command === 'update-number') {
+                    this.updateVehicleNumber(commandData.data.number);
+                }
+            }
+        });
+    }
+
+    // カメラ用リスナー
+    setupCameraListeners() {
+        readData('commands/camera', (snapshot) => {
+            if (this.deviceType === 'camera') {
+                const data = snapshot.val();
+                if (data && data.command === 'toggle') {
+                    this.toggleCamera();
+                }
+            }
+        });
+    }
+
+    // コマンド送信
+    sendCommand(target, command, data) {
+        const commandData = {
+            command: command,
+            data: data,
+            timestamp: Date.now()
         };
-        
-        console.log('🎭 謎解き公演システム - 開発者コンソール');
-        console.log('利用可能なコマンド:');
-        console.log('  mysteryShow.getStatus() - システム状態取得');
-        console.log('  mysteryShow.switchScene(id) - シーン切り替え');
-        console.log('  mysteryShow.getDevices() - デバイス一覧');
-        console.log('  mysteryShow.getConfig() - 設定取得');
-        console.log('  mysteryShow.resetConfig() - 設定リセット');
-    }
-}
 
-// パフォーマンス監視
-function setupPerformanceMonitoring() {
-    if ('performance' in window) {
-        window.addEventListener('load', () => {
-            const perfData = performance.getEntriesByType('navigation')[0];
-            const loadTime = perfData.loadEventEnd - perfData.loadEventStart;
-            
-            window.logger.info('ページ読み込み完了', {
-                duration: loadTime,
-                domContentLoaded: perfData.domContentLoadedEventEnd - perfData.domContentLoadedEventStart,
-                domInteractive: perfData.domInteractive - perfData.domContentLoadedEventStart
-            });
-        });
-    }
-}
-
-// サービスワーカー登録（PWA対応）
-function registerServiceWorker() {
-    if ('serviceWorker' in navigator && window.config.get('ui.enablePWA')) {
-        navigator.serviceWorker.register('/sw.js')
-            .then(registration => {
-                window.logger.info('Service Worker 登録成功', registration);
+        writeData(`commands/${target}`, commandData)
+            .then(() => {
+                console.log(`コマンド送信完了: ${target} - ${command}`);
+                this.showNotification(`${target}に${command}コマンドを送信しました`);
             })
             .catch(error => {
-                window.logger.error('Service Worker 登録失敗', error);
+                console.error('コマンド送信エラー:', error);
+                this.showNotification('コマンド送信に失敗しました', 'error');
             });
+    }
+
+    // チームグリッド描画
+    renderTeamGrid() {
+        const teamGrid = document.getElementById('team-grid');
+        if (!teamGrid) return;
+
+        teamGrid.innerHTML = '';
+        
+        this.teams.forEach(team => {
+            const teamCard = document.createElement('div');
+            teamCard.className = `team-card ${team.isActive ? 'active' : ''}`;
+            teamCard.innerHTML = `
+                <div class="team-header">
+                    <span class="team-name">${team.name}</span>
+                    <span class="team-step">ステップ${team.currentStep}</span>
+                </div>
+                <div class="step-controls">
+                    <button class="step-btn prev" onclick="app.changeTeamStep(${team.id}, -1)">前へ</button>
+                    <button class="step-btn next" onclick="app.changeTeamStep(${team.id}, 1)">次へ</button>
+                </div>
+            `;
+            teamGrid.appendChild(teamCard);
+        });
+    }
+
+    // 現在のステップ表示を更新
+    updateCurrentStepDisplay() {
+        const stepInfo = document.getElementById('current-step-info');
+        if (stepInfo && this.steps[this.currentStep]) {
+            stepInfo.textContent = `ステップ${this.currentStep}: ${this.steps[this.currentStep].name}`;
+        }
+    }
+
+    // 全チーム次へ
+    nextAllTeams() {
+        let changed = false;
+        this.teams.forEach(team => {
+            if (team.currentStep < this.maxSteps) {
+                team.currentStep++;
+                changed = true;
+            }
+        });
+        
+        if (changed) {
+            this.currentStep = Math.max(...this.teams.map(t => t.currentStep));
+            this.updateCurrentStepDisplay();
+            this.renderTeamGrid();
+            this.updateDisplays();
+            this.showNotification('全チームを次のステップに進めました');
+        }
+    }
+
+    // 全チーム前へ
+    prevAllTeams() {
+        let changed = false;
+        this.teams.forEach(team => {
+            if (team.currentStep > 1) {
+                team.currentStep--;
+                changed = true;
+            }
+        });
+        
+        if (changed) {
+            this.currentStep = Math.max(...this.teams.map(t => t.currentStep));
+            this.updateCurrentStepDisplay();
+            this.renderTeamGrid();
+            this.updateDisplays();
+            this.showNotification('全チームを前のステップに戻しました');
+        }
+    }
+
+    // 全チームリセット
+    resetAllTeams() {
+        this.teams.forEach(team => {
+            team.currentStep = 1;
+            team.isActive = false;
+        });
+        this.currentStep = 1;
+        this.updateCurrentStepDisplay();
+        this.renderTeamGrid();
+        this.updateDisplays();
+        this.showNotification('全チームをリセットしました');
+    }
+
+    // 個別チームのステップ変更
+    changeTeamStep(teamId, direction) {
+        const team = this.teams.find(t => t.id === teamId);
+        if (!team) return;
+
+        const newStep = team.currentStep + direction;
+        if (newStep >= 1 && newStep <= this.maxSteps) {
+            team.currentStep = newStep;
+            this.currentStep = Math.max(...this.teams.map(t => t.currentStep));
+            this.updateCurrentStepDisplay();
+            this.renderTeamGrid();
+            this.updateDisplays();
+            this.showNotification(`${team.name}をステップ${newStep}に変更しました`);
+        }
+    }
+
+    // 表示の更新
+    updateDisplays() {
+        const currentStepData = this.steps[this.currentStep];
+        if (currentStepData) {
+            // モニター前後の画像を更新
+            this.sendCommand('monitor-front', 'show-image', { 
+                imageUrl: `images/${currentStepData.monitorFront}`,
+                step: this.currentStep
+            });
+            
+            this.sendCommand('monitor-back', 'show-image', { 
+                imageUrl: `images/${currentStepData.monitorBack}`,
+                step: this.currentStep
+            });
+            
+            // 車両番号を更新
+            this.sendCommand('vehicle', 'update-number', { 
+                number: currentStepData.vehicleNumber,
+                step: this.currentStep
+            });
+        }
+    }
+
+    // 画像表示
+    displayImage(displayId, imageUrl) {
+        const display = document.getElementById(displayId);
+        if (display) {
+            display.innerHTML = `<img src="${imageUrl}" alt="表示画像" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
+        }
+    }
+
+    // 車両番号更新
+    updateVehicleNumber(number) {
+        const vehicleDisplay = document.getElementById('vehicle-number');
+        if (vehicleDisplay) {
+            vehicleDisplay.textContent = number.padStart(3, '0');
+        }
+    }
+
+    // カメラ切り替え
+    toggleCamera() {
+        const cameraView = document.getElementById('camera-view');
+        if (cameraView) {
+            // 実際のカメラ機能はここに実装
+            cameraView.innerHTML = '<p>カメラが切り替わりました</p>';
+        }
+    }
+
+    // デバイスタイプ更新
+    updateDeviceType() {
+        const deviceInfo = {
+            type: this.deviceType,
+            timestamp: Date.now(),
+            userAgent: navigator.userAgent
+        };
+
+        writeData(`devices/${this.generateDeviceId()}`, deviceInfo);
+    }
+
+    // デバイスID生成
+    generateDeviceId() {
+        let deviceId = localStorage.getItem('deviceId');
+        if (!deviceId) {
+            deviceId = 'device_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('deviceId', deviceId);
+        }
+        return deviceId;
+    }
+
+    // 通知表示
+    showNotification(message, type = 'success') {
+        // 既存の通知を削除
+        const existingNotification = document.querySelector('.notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+
+        // 新しい通知を作成
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: ${type === 'error' ? '#e74c3c' : '#27ae60'};
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-weight: 600;
+            z-index: 10000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        `;
+
+        document.body.appendChild(notification);
+
+        // フェードイン
+        setTimeout(() => {
+            notification.style.opacity = '1';
+        }, 100);
+
+        // 3秒後に自動削除
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 3000);
     }
 }
 
-// アプリケーション起動
+// アプリケーション初期化
+let app;
 document.addEventListener('DOMContentLoaded', () => {
-    // メインアプリケーション初期化
-    window.app = new MysteryShowApp();
-    
-    // キーボードショートカット初期化
-    window.shortcuts = new KeyboardShortcuts(window.app);
-    
-    // 開発者コンソール設定
-    setupDevConsole();
-    
-    // パフォーマンス監視
-    setupPerformanceMonitoring();
-    
-    // サービスワーカー登録
-    registerServiceWorker();
+    app = new TabletApp();
 });
 
 // ページ離脱時の処理
 window.addEventListener('beforeunload', () => {
-    if (window.app) {
-        window.app.shutdown();
+    // デバイス情報をクリア
+    if (app && app.deviceType) {
+        writeData(`devices/${app.generateDeviceId()}`, null);
     }
 });
 
-// エラー時の回復処理
-window.addEventListener('error', (e) => {
-    // 重要なエラーの場合、自動回復を試行
-    if (e.error && e.error.message.includes('Firebase')) {
-        setTimeout(() => {
-            location.reload();
-        }, 5000);
+// エラーハンドリング
+window.addEventListener('error', (event) => {
+    console.error('アプリケーションエラー:', event.error);
+    if (app) {
+        app.showNotification('アプリケーションエラーが発生しました', 'error');
+    }
+});
+
+// Firebase接続エラー時の処理
+window.addEventListener('offline', () => {
+    if (app) {
+        app.showNotification('オフラインモードで動作中', 'error');
+    }
+});
+
+window.addEventListener('online', () => {
+    if (app) {
+        app.showNotification('オンラインに復帰しました', 'success');
     }
 }); 
