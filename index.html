@@ -97,6 +97,32 @@
                     </div>
                 </div>
                 <div class="control-group">
+                    <h3>接続状況監視</h3>
+                    <div class="connection-monitor-panel">
+                        <div class="connection-summary" id="connection-summary">
+                            <div class="summary-item">
+                                <span class="summary-label">接続中端末:</span>
+                                <span class="summary-value" id="connected-devices-count">0</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Firebase接続:</span>
+                                <span class="summary-value" id="firebase-status">確認中...</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">最終更新:</span>
+                                <span class="summary-value" id="last-update">---</span>
+                            </div>
+                        </div>
+                        <div class="device-list" id="device-list">
+                            <p>デバイス情報を読み込み中...</p>
+                        </div>
+                        <div class="connection-actions">
+                            <button class="control-btn" id="refresh-connections">接続状況更新</button>
+                            <button class="control-btn" id="test-all-communications">全端末通信テスト</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="control-group">
                     <h3>その他の制御</h3>
                     <p>その他のマスター制御機能がここに表示されます</p>
                 </div>
@@ -252,6 +278,7 @@
     
     <!-- アプリケーションのJavaScript -->
     <script src="js/firebase-config.js"></script>
+    <script src="js/connection-manager.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html> 

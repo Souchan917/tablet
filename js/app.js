@@ -489,6 +489,9 @@ class TabletApp {
         updateVehicleNumber(this.maxCars);
         // 自動減少を開始
         startAutoDecrease();
+        
+        // 接続監視機能の初期化
+        this.setupConnectionMonitoring();
     }
 
     // 車両番号画面の初期化
@@ -661,6 +664,199 @@ class TabletApp {
                 
             default:
                 console.log('未知のコマンド:', command);
+        }
+    }
+
+    // 接続監視機能の設定
+    setupConnectionMonitoring() {
+        const refreshBtn = document.getElementById('refresh-connections');
+        const testBtn = document.getElementById('test-all-communications');
+        
+        if (!refreshBtn || !testBtn) {
+            console.log('接続監視機能の要素が見つかりません');
+            return;
+        }
+
+        // 定期的な更新間隔（30秒）
+        this.connectionUpdateInterval = setInterval(() => {
+            this.updateConnectionDisplay();
+        }, 30000);
+
+        // ボタンイベントの設定
+        refreshBtn.addEventListener('click', () => {
+            this.updateConnectionDisplay();
+            this.showNotification('接続状況を更新しました', 'success');
+        });
+
+        testBtn.addEventListener('click', () => {
+            this.testAllCommunications();
+        });
+
+        // 初回表示
+        this.updateConnectionDisplay();
+        
+        console.log('接続監視機能初期化完了');
+    }
+
+    // 接続状況表示の更新
+    async updateConnectionDisplay() {
+        const connectedCountEl = document.getElementById('connected-devices-count');
+        const firebaseStatusEl = document.getElementById('firebase-status');
+        const lastUpdateEl = document.getElementById('last-update');
+        const deviceListEl = document.getElementById('device-list');
+
+        if (!connectedCountEl || !firebaseStatusEl || !lastUpdateEl || !deviceListEl) {
+            return;
+        }
+
+        try {
+            // 接続管理システムから情報を取得
+            if (window.connectionManager) {
+                const isFirebaseConnected = window.connectionManager.isFirebaseConnected;
+                firebaseStatusEl.textContent = isFirebaseConnected ? '接続中' : '切断中';
+                firebaseStatusEl.style.color = isFirebaseConnected ? '#28a745' : '#dc3545';
+
+                if (isFirebaseConnected) {
+                    // アクティブデバイス一覧を取得
+                    const devices = await window.connectionManager.getOtherDevices();
+                    connectedCountEl.textContent = devices.length.toString();
+                    
+                    // デバイス一覧を表示
+                    this.renderDeviceList(devices, deviceListEl);
+                } else {
+                    connectedCountEl.textContent = '0';
+                    deviceListEl.innerHTML = '<p style="color: #dc3545;">Firebase接続が必要です</p>';
+                }
+            } else {
+                firebaseStatusEl.textContent = '初期化中';
+                firebaseStatusEl.style.color = '#ffc107';
+                deviceListEl.innerHTML = '<p>接続管理システム初期化中...</p>';
+            }
+
+            // 最終更新時刻を設定
+            const now = new Date();
+            lastUpdateEl.textContent = now.toLocaleTimeString();
+
+        } catch (error) {
+            console.error('接続状況更新エラー:', error);
+            deviceListEl.innerHTML = '<p style="color: #dc3545;">接続状況の取得に失敗しました</p>';
+        }
+    }
+
+    // デバイス一覧を表示
+    renderDeviceList(devices, container) {
+        if (devices.length === 0) {
+            container.innerHTML = '<p>他の接続端末はありません</p>';
+            return;
+        }
+
+        const deviceItems = devices.map(device => {
+            const lastSeenAge = Date.now() - (device.lastSeen || 0);
+            const isRecentlyActive = lastSeenAge < 60000; // 1分以内
+            
+            let statusClass = 'offline';
+            let statusText = 'オフライン';
+            
+            if (device.isOnline && device.isFirebaseConnected && isRecentlyActive) {
+                statusClass = 'online';
+                statusText = 'オンライン';
+            } else if (device.isOnline && !device.isFirebaseConnected) {
+                statusClass = 'warning';
+                statusText = 'Firebase切断';
+            }
+
+            const deviceTypeName = this.getDeviceTypeName(device.type);
+            const lastSeenText = this.formatLastSeen(lastSeenAge);
+
+            return `
+                <div class="device-item">
+                    <div class="device-info">
+                        <div class="device-name">${deviceTypeName} (${device.id.substring(0, 8)}...)</div>
+                        <div class="device-details">最終確認: ${lastSeenText}</div>
+                    </div>
+                    <div class="device-status">
+                        <div class="status-indicator ${statusClass}"></div>
+                        <span class="status-text">${statusText}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = deviceItems;
+    }
+
+    // デバイスタイプ名を取得
+    getDeviceTypeName(type) {
+        const typeNames = {
+            'staff': 'スタッフ画面',
+            'master': 'マスター画面',
+            'monitor_front': 'モニター前',
+            'monitor_back': 'モニター後',
+            'camera': 'カメラ画面',
+            'vehicle': '車両番号画面',
+            'unknown': '不明なデバイス'
+        };
+        return typeNames[type] || `${type}画面`;
+    }
+
+    // 最終確認時刻をフォーマット
+    formatLastSeen(ageMs) {
+        if (ageMs < 60000) {
+            return `${Math.floor(ageMs / 1000)}秒前`;
+        } else if (ageMs < 3600000) {
+            return `${Math.floor(ageMs / 60000)}分前`;
+        } else {
+            return `${Math.floor(ageMs / 3600000)}時間前`;
+        }
+    }
+
+    // 全端末通信テスト
+    async testAllCommunications() {
+        if (!window.connectionManager || !window.connectionManager.isFirebaseConnected) {
+            this.showNotification('Firebase接続が必要です', 'error');
+            return;
+        }
+
+        this.showNotification('通信テストを開始しています...', 'info');
+
+        try {
+            const devices = await window.connectionManager.getOtherDevices();
+            
+            if (devices.length === 0) {
+                this.showNotification('テスト対象の端末がありません', 'warning');
+                return;
+            }
+
+            let successCount = 0;
+            let failCount = 0;
+
+            // 各デバイスに順次テスト
+            for (const device of devices) {
+                try {
+                    await window.connectionManager.testCommunication(device.id);
+                    successCount++;
+                    console.log(`通信テスト成功: ${device.id}`);
+                } catch (error) {
+                    failCount++;
+                    console.error(`通信テスト失敗: ${device.id}`, error);
+                }
+            }
+
+            // 結果表示
+            const totalDevices = devices.length;
+            const message = `通信テスト完了: 成功 ${successCount}/${totalDevices}`;
+            const type = failCount === 0 ? 'success' : 'warning';
+            
+            this.showNotification(message, type);
+
+            // 接続状況を再更新
+            setTimeout(() => {
+                this.updateConnectionDisplay();
+            }, 1000);
+
+        } catch (error) {
+            console.error('通信テストエラー:', error);
+            this.showNotification('通信テストでエラーが発生しました', 'error');
         }
     }
 
@@ -1634,6 +1830,11 @@ class TabletApp {
         };
 
         writeData(`devices/${this.generateDeviceId()}`, deviceInfo);
+        
+        // 接続管理システムにデバイスタイプを設定
+        if (window.connectionManager) {
+            window.connectionManager.setDeviceType(this.deviceType);
+        }
     }
 
     // デバイスID生成
@@ -1670,11 +1871,11 @@ class TabletApp {
         setTimeout(() => {
             if (notification.parentNode) {
                 notification.classList.add('fade-out');
-                setTimeout(() => {
-                    if (notification.parentNode) {
-                        notification.parentNode.removeChild(notification);
-                    }
-                }, 300);
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
             }
         }, 5000);
     }
