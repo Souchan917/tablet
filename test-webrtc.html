@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTCテスト</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            color: #fff;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background-color: #222;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+        button {
+            background-color: #9AFF9A;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #7FFF7F;
+        }
+        button:disabled {
+            background-color: #666;
+            color: #999;
+            cursor: not-allowed;
+        }
+        input {
+            background-color: #333;
+            color: #fff;
+            border: 2px solid #9AFF9A;
+            padding: 8px;
+            border-radius: 4px;
+            margin: 5px;
+            width: 300px;
+        }
+        video {
+            width: 100%;
+            max-width: 400px;
+            background-color: #000;
+            border: 1px solid #444;
+        }
+        .status {
+            background-color: #333;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .logs {
+            background-color: #111;
+            padding: 10px;
+            border-radius: 4px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 WebRTC接続テスト</h1>
+        
+        <div class="test-section">
+            <h2>1. PeerJS基本テスト</h2>
+            <button onclick="initPeer()">PeerJS初期化</button>
+            <button onclick="startCamera()">カメラ開始</button>
+            <div class="status">
+                <div>自分のID: <span id="myId">未初期化</span></div>
+                <div>接続状態: <span id="peerStatus">未接続</span></div>
+            </div>
+            <video id="localVideo" autoplay muted playsinline></video>
+        </div>
+        
+        <div class="test-section">
+            <h2>2. 接続テスト</h2>
+            <input type="text" id="targetId" placeholder="接続先のIDを入力">
+            <button onclick="testConnection()">接続テスト</button>
+            <button onclick="connectToTarget()">通話開始</button>
+            <div class="status">
+                <div>接続先: <span id="targetStatus">未接続</span></div>
+            </div>
+            <video id="remoteVideo" autoplay playsinline></video>
+        </div>
+        
+        <div class="test-section">
+            <h2>3. ログ</h2>
+            <button onclick="clearLogs()">ログクリア</button>
+            <div id="logs" class="logs"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <script>
+        let peer = null;
+        let localStream = null;
+        let call = null;
+        
+        function log(message) {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            logs.innerHTML += `[${timestamp}] ${message}<br>`;
+            logs.scrollTop = logs.scrollHeight;
+            console.log(message);
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+        
+        function initPeer() {
+            const peerId = 'test-' + Math.random().toString(36).substr(2, 9);
+            log('🔄 PeerJS初期化開始: ' + peerId);
+            
+            peer = new Peer(peerId, {
+                debug: 1
+            });
+            
+            peer.on('open', function(id) {
+                log('✅ PeerJS接続成功: ' + id);
+                document.getElementById('myId').textContent = id;
+                document.getElementById('peerStatus').textContent = '接続済み';
+            });
+            
+            peer.on('call', function(incomingCall) {
+                log('📞 着信: ' + incomingCall.peer);
+                if (localStream) {
+                    incomingCall.answer(localStream);
+                    setupCallEvents(incomingCall);
+                }
+            });
+            
+            peer.on('connection', function(conn) {
+                log('📡 データ接続: ' + conn.peer);
+                conn.on('open', function() {
+                    log('✅ データ接続開始');
+                    conn.send('Hello from ' + peer.id);
+                });
+                conn.on('data', function(data) {
+                    log('📥 データ受信: ' + data);
+                });
+            });
+            
+            peer.on('error', function(err) {
+                log('❌ PeerJSエラー: ' + err.type + ' - ' + err.message);
+                document.getElementById('peerStatus').textContent = 'エラー: ' + err.type;
+            });
+        }
+        
+        async function startCamera() {
+            try {
+                log('📹 カメラ開始...');
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480 },
+                    audio: true
+                });
+                
+                document.getElementById('localVideo').srcObject = localStream;
+                log('✅ カメラ開始成功');
+                
+            } catch (error) {
+                log('❌ カメラエラー: ' + error.message);
+            }
+        }
+        
+        function testConnection() {
+            const targetId = document.getElementById('targetId').value.trim();
+            if (!targetId) {
+                alert('接続先IDを入力してください');
+                return;
+            }
+            
+            if (!peer) {
+                log('❌ PeerJSが初期化されていません');
+                return;
+            }
+            
+            log('🧪 接続テスト開始: ' + targetId);
+            
+            const conn = peer.connect(targetId);
+            
+            conn.on('open', function() {
+                log('✅ 接続テスト成功: ' + targetId);
+                document.getElementById('targetStatus').textContent = '接続可能';
+                conn.close();
+            });
+            
+            conn.on('error', function(error) {
+                log('❌ 接続テスト失敗: ' + error);
+                document.getElementById('targetStatus').textContent = '接続失敗';
+            });
+            
+            setTimeout(() => {
+                if (conn.open === false) {
+                    log('⏰ 接続テストタイムアウト');
+                    document.getElementById('targetStatus').textContent = 'タイムアウト';
+                }
+            }, 5000);
+        }
+        
+        function connectToTarget() {
+            const targetId = document.getElementById('targetId').value.trim();
+            if (!targetId) {
+                alert('接続先IDを入力してください');
+                return;
+            }
+            
+            if (!peer || !localStream) {
+                log('❌ PeerJSまたはカメラが準備できていません');
+                return;
+            }
+            
+            log('📞 通話開始: ' + targetId);
+            call = peer.call(targetId, localStream);
+            setupCallEvents(call);
+        }
+        
+        function setupCallEvents(call) {
+            call.on('stream', function(remoteStream) {
+                log('📺 リモートストリーム受信');
+                document.getElementById('remoteVideo').srcObject = remoteStream;
+                document.getElementById('targetStatus').textContent = '通話中';
+            });
+            
+            call.on('close', function() {
+                log('📴 通話終了');
+                document.getElementById('targetStatus').textContent = '切断';
+            });
+            
+            call.on('error', function(error) {
+                log('❌ 通話エラー: ' + error);
+                document.getElementById('targetStatus').textContent = 'エラー';
+            });
+        }
+        
+        // 初期化
+        log('🚀 WebRTCテストページ開始');
+        log('手順: 1) PeerJS初期化 → 2) カメラ開始 → 3) IDをコピーして別タブで共有');
+    </script>
+</body>
+</html> 

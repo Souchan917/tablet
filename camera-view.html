@@ -32,10 +32,10 @@
             </div>
             
             <div class="camera-controls">
+                <button class="camera-btn" id="testBtn">接続テスト</button>
                 <button class="camera-btn" id="connectBtn">接続開始</button>
                 <button class="camera-btn" id="disconnectBtn" disabled>接続終了</button>
                 <button class="camera-btn" id="fullscreenBtn">全画面表示</button>
-                <button class="camera-btn" id="recordBtn" disabled>録画開始</button>
             </div>
             
             <div class="connection-info">
@@ -87,22 +87,17 @@
         // PeerJS接続を初期化
         function initializePeer() {
             // 受信側のランダムなpeerIDを生成
-            const peerId = 'camera-viewer-' + Math.random().toString(36).substr(2, 9);
+            const peerId = 'tablet-viewer-' + Date.now().toString(36);
             
             console.log('🔄 PeerJS初期化開始 (受信側):', peerId);
             
+            // PeerJS設定を簡素化
             peer = new Peer(peerId, {
-                host: '0.peerjs.com',
-                port: 443,
-                path: '/',
-                secure: true,
-                debug: 2, // デバッグレベルを追加
+                debug: 1,
                 config: {
                     iceServers: [
                         { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' },
-                        { urls: 'stun:stun2.l.google.com:19302' },
-                        { urls: 'stun:stun3.l.google.com:19302' }
+                        { urls: 'stun:stun1.l.google.com:19302' }
                     ]
                 }
             });
@@ -181,10 +176,42 @@
             });
         }
 
+        // 配信の存在を確認
+        function checkBroadcastExists(broadcastId) {
+            return new Promise((resolve, reject) => {
+                // データ接続を試行して配信の存在を確認
+                const testConnection = peer.connect(broadcastId);
+                
+                testConnection.on('open', function() {
+                    console.log('✅ 配信ID確認済み:', broadcastId);
+                    testConnection.close();
+                    resolve(true);
+                });
+                
+                testConnection.on('error', function(error) {
+                    console.warn('❌ 配信ID確認失敗:', error);
+                    reject(error);
+                });
+                
+                // 5秒でタイムアウト
+                setTimeout(() => {
+                    testConnection.close();
+                    reject(new Error('配信ID確認タイムアウト'));
+                }, 5000);
+            });
+        }
+
         // 配信に接続
-        function connectToBroadcast() {
+        async function connectToBroadcast() {
             if (!peer) {
-                console.error('PeerJS が初期化されていません');
+                console.error('❌ PeerJS が初期化されていません');
+                document.getElementById('statusText').textContent = 'PeerJSが初期化されていません';
+                return;
+            }
+
+            if (!peer.open) {
+                console.error('❌ PeerJS接続が開いていません');
+                document.getElementById('statusText').textContent = 'PeerJS接続が開いていません';
                 return;
             }
 
@@ -201,13 +228,20 @@
             broadcastId = inputId;
 
             try {
-                console.log('🔄 配信に接続中...', broadcastId);
+                console.log('🔄 配信IDを確認中...', broadcastId);
+                document.getElementById('statusText').textContent = '配信IDを確認中...';
+                
+                // 配信の存在を確認
+                await checkBroadcastExists(broadcastId);
+                
+                console.log('📞 配信に接続中...', broadcastId);
                 document.getElementById('statusText').textContent = '配信に接続中...';
                 
+                // 実際の通話を開始
                 call = peer.call(broadcastId);
                 
                 if (!call) {
-                    throw new Error('配信IDが見つかりません');
+                    throw new Error('通話の初期化に失敗しました');
                 }
                 
                 console.log('📞 通話要求を送信:', broadcastId);
@@ -239,14 +273,24 @@
                 // 接続状態を監視
                 setTimeout(() => {
                     if (!isConnected) {
-                        console.warn('⚠️ 接続タイムアウト - 配信IDまたは配信状態を確認してください');
-                        document.getElementById('statusText').textContent = '接続タイムアウト - 配信IDまたは配信状態を確認してください';
+                        console.warn('⚠️ 接続タイムアウト');
+                        document.getElementById('statusText').textContent = '接続タイムアウト - 配信側の状態を確認してください';
                     }
                 }, 10000); // 10秒でタイムアウト
                 
             } catch (error) {
                 console.error('❌ 配信への接続に失敗:', error);
-                document.getElementById('statusText').textContent = '配信への接続に失敗: ' + error.message;
+                let errorMessage = '配信への接続に失敗: ';
+                
+                if (error.message.includes('タイムアウト')) {
+                    errorMessage += '配信IDが見つかりません';
+                } else if (error.message.includes('確認失敗')) {
+                    errorMessage += '配信が開始されていません';
+                } else {
+                    errorMessage += error.message;
+                }
+                
+                document.getElementById('statusText').textContent = errorMessage;
             }
         }
 
@@ -557,6 +601,38 @@
             }
         }
 
+        // 接続テスト
+        async function testConnection() {
+            const inputField = document.getElementById('broadcastIdInput');
+            const inputId = inputField.value.trim();
+            
+            if (!inputId) {
+                alert('配信IDを入力してください');
+                inputField.focus();
+                return;
+            }
+            
+            if (!peer || !peer.open) {
+                document.getElementById('statusText').textContent = 'PeerJS接続を確認中...';
+                console.log('❌ PeerJS接続が準備できていません');
+                return;
+            }
+            
+            try {
+                console.log('🧪 接続テスト開始:', inputId);
+                document.getElementById('statusText').textContent = '接続テスト中...';
+                
+                await checkBroadcastExists(inputId);
+                
+                console.log('✅ 接続テスト成功');
+                document.getElementById('statusText').textContent = '接続テスト成功 - 配信が見つかりました';
+                
+            } catch (error) {
+                console.error('❌ 接続テスト失敗:', error);
+                document.getElementById('statusText').textContent = '接続テスト失敗 - 配信が見つかりません';
+            }
+        }
+
         // 戻るボタン
         function goBack() {
             disconnectFromBroadcast();
@@ -575,6 +651,7 @@
             ctx = canvas.getContext('2d');
             
             // イベントリスナーを追加
+            document.getElementById('testBtn').addEventListener('click', testConnection);
             document.getElementById('connectBtn').addEventListener('click', connectToBroadcast);
             document.getElementById('disconnectBtn').addEventListener('click', disconnectFromBroadcast);
             document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);

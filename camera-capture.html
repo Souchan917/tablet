@@ -226,23 +226,18 @@
 
         // PeerJS接続を初期化
         function initializePeer() {
-            // 動的なpeerIDを生成（配信側）
-            const peerId = 'camera-broadcast-' + Math.random().toString(36).substr(2, 9);
+            // 固定のpeerIDを生成（配信側）
+            const peerId = 'tablet-broadcast-' + Date.now().toString(36);
             
-            console.log('PeerJS初期化開始:', peerId);
+            console.log('🔄 PeerJS初期化開始:', peerId);
             
+            // PeerJS設定を簡素化
             peer = new Peer(peerId, {
-                host: '0.peerjs.com',
-                port: 443,
-                path: '/',
-                secure: true,
-                debug: 2, // デバッグレベルを追加
+                debug: 1,
                 config: {
                     iceServers: [
                         { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' },
-                        { urls: 'stun:stun2.l.google.com:19302' },
-                        { urls: 'stun:stun3.l.google.com:19302' }
+                        { urls: 'stun:stun1.l.google.com:19302' }
                     ]
                 }
             });
@@ -294,9 +289,19 @@
             });
 
             peer.on('connection', function(conn) {
-                console.log('データ接続:', conn.peer);
+                console.log('📡 データ接続を受信:', conn.peer);
                 conn.on('open', function() {
-                    console.log('データ接続開始');
+                    console.log('✅ データ接続開始');
+                    // 接続確認のレスポンス
+                    conn.send({ type: 'ping', message: '配信準備完了' });
+                });
+                
+                conn.on('data', function(data) {
+                    console.log('📥 データ受信:', data);
+                });
+                
+                conn.on('close', function() {
+                    console.log('📴 データ接続終了');
                 });
             });
 
