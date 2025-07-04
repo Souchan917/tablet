@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MASTER - 謎解きシステム</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <button class="back-btn" onclick="goBack()">← 戻る</button>
+    
+    <div class="container">
+        <h1>MASTER 制御画面</h1>
+        
+        <!-- 車両番号制御 -->
+        <div class="master-controls">
+            <h3>車両番号制御</h3>
+            <div class="car-number-controls">
+                <button class="control-btn" id="decrementBtn">-1</button>
+                <input type="number" id="carNumberInput" class="car-number-input" value="3600" min="0" max="9999">
+                <button class="control-btn" id="incrementBtn">+1</button>
+                <button class="control-btn" id="applyBtn">適用</button>
+            </div>
+            <div class="car-number-display">
+                現在の車両番号: <span id="currentCarNumber">3600</span>
+            </div>
+        </div>
+        
+        <!-- チーム進捗制御 -->
+        <div class="progress-container">
+            <div class="team-progress" id="teamProgress">
+                <!-- チーム進捗バーはJavaScriptで生成 -->
+            </div>
+            
+            <div class="global-controls">
+                <button class="control-btn" id="nextAllBtn">全チーム Next</button>
+                <button class="control-btn" id="backAllBtn">全チーム Back</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        let teams = [];
+        let unsubscribeTeams = null;
+        let unsubscribeCarNumber = null;
+        let currentCarNumber = 3600;
+
+        // チーム進捗バーを生成
+        function createTeamProgressBars() {
+            const container = document.getElementById('teamProgress');
+            container.innerHTML = '';
+            
+            for (let i = 1; i <= 11; i++) {
+                const teamCard = document.createElement('div');
+                teamCard.className = 'team-card';
+                teamCard.innerHTML = `
+                    <h3>チーム${i}</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-${i}" style="width: 0%"></div>
+                    </div>
+                    <div class="progress-info">
+                        <span id="progress-text-${i}">0/10</span>
+                    </div>
+                    <div class="team-controls">
+                        <button class="control-btn" onclick="updateTeamProgress(${i}, -1)">Back</button>
+                        <button class="control-btn" onclick="updateTeamProgress(${i}, 1)">Next</button>
+                    </div>
+                `;
+                container.appendChild(teamCard);
+            }
+        }
+
+        // チーム進捗を更新
+        async function updateTeamProgress(teamId, delta) {
+            const team = teams.find(t => t.id === teamId);
+            if (!team) return;
+            
+            const newProgress = Math.max(0, Math.min(team.maxProgress, team.progress + delta));
+            if (newProgress !== team.progress) {
+                team.progress = newProgress;
+                await window.PuzzleSystem.saveTeamProgress(teamId, newProgress);
+                updateProgressDisplay(teamId, newProgress, team.maxProgress);
+            }
+        }
+
+        // 進捗バーの表示を更新
+        function updateProgressDisplay(teamId, progress, maxProgress) {
+            const progressFill = document.getElementById(`progress-${teamId}`);
+            const progressText = document.getElementById(`progress-text-${teamId}`);
+            
+            if (progressFill && progressText) {
+                const percentage = (progress / maxProgress) * 100;
+                progressFill.style.width = `${percentage}%`;
+                progressText.textContent = `${progress}/${maxProgress}`;
+            }
+        }
+
+        // 全チームの進捗を更新
+        async function updateAllTeams(delta) {
+            const promises = teams.map(team => {
+                const newProgress = Math.max(0, Math.min(team.maxProgress, team.progress + delta));
+                if (newProgress !== team.progress) {
+                    team.progress = newProgress;
+                    return window.PuzzleSystem.saveTeamProgress(team.id, newProgress);
+                }
+                return Promise.resolve();
+            });
+            
+            await Promise.all(promises);
+            
+            // 表示を更新
+            teams.forEach(team => {
+                updateProgressDisplay(team.id, team.progress, team.maxProgress);
+            });
+        }
+
+        // 車両番号を更新
+        async function updateCarNumber(delta) {
+            const newNumber = Math.max(0, Math.min(9999, currentCarNumber + delta));
+            const input = document.getElementById('carNumberInput');
+            input.value = newNumber;
+        }
+
+        // 車両番号を適用
+        async function applyCarNumber() {
+            const input = document.getElementById('carNumberInput');
+            const newNumber = parseInt(input.value) || 0;
+            await window.PuzzleSystem.saveCarNumber(newNumber);
+        }
+
+        // 車両番号表示を更新
+        function updateCarNumberDisplay(number) {
+            document.getElementById('currentCarNumber').textContent = number;
+            document.getElementById('carNumberInput').value = number;
+        }
+
+        // チーム進捗の変更を監視
+        function watchTeamChanges() {
+            unsubscribeTeams = window.PuzzleSystem.watchTeamProgress((updatedTeams) => {
+                teams = updatedTeams;
+                teams.forEach(team => {
+                    updateProgressDisplay(team.id, team.progress, team.maxProgress);
+                });
+            });
+        }
+
+        // 車両番号の変更を監視
+        function watchCarNumberChanges() {
+            unsubscribeCarNumber = window.PuzzleSystem.watchCarNumber((number) => {
+                currentCarNumber = number;
+                updateCarNumberDisplay(number);
+            });
+        }
+
+        // 戻るボタン
+        function goBack() {
+            if (unsubscribeTeams) {
+                unsubscribeTeams();
+            }
+            if (unsubscribeCarNumber) {
+                unsubscribeCarNumber();
+            }
+            window.location.href = 'index.html';
+        }
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            // チーム初期化
+            teams = [];
+            for (let i = 1; i <= 11; i++) {
+                teams.push({
+                    id: i,
+                    name: `チーム${i}`,
+                    progress: 0,
+                    maxProgress: 10
+                });
+            }
+            
+            createTeamProgressBars();
+            
+            // Firebase接続後に進捗を読み込み
+            setTimeout(async () => {
+                await window.PuzzleSystem.loadTeamProgress();
+                await window.PuzzleSystem.loadCarNumber();
+                watchTeamChanges();
+                watchCarNumberChanges();
+            }, 1000);
+            
+            // イベントリスナーを追加
+            document.getElementById('nextAllBtn').addEventListener('click', () => updateAllTeams(1));
+            document.getElementById('backAllBtn').addEventListener('click', () => updateAllTeams(-1));
+            
+            // 車両番号制御のイベントリスナー
+            document.getElementById('decrementBtn').addEventListener('click', () => updateCarNumber(-1));
+            document.getElementById('incrementBtn').addEventListener('click', () => updateCarNumber(1));
+            document.getElementById('applyBtn').addEventListener('click', applyCarNumber);
+        });
+
+        // ページ離脱時のクリーンアップ
+        window.addEventListener('beforeunload', function() {
+            if (unsubscribeTeams) {
+                unsubscribeTeams();
+            }
+            if (unsubscribeCarNumber) {
+                unsubscribeCarNumber();
+            }
+        });
+    </script>
+</body>
+</html> 

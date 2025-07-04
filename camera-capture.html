@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カメラ撮影 - 謎解きシステム</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <button class="back-btn" onclick="goBack()">← 戻る</button>
+    
+    <div class="container">
+        <h1>カメラ撮影</h1>
+        
+        <div class="camera-container">
+            <div class="video-container">
+                <video id="localVideo" autoplay muted playsinline></video>
+                <p id="statusText">カメラを準備中...</p>
+            </div>
+            
+            <div class="camera-controls">
+                <select id="cameraSelect">
+                    <option value="">カメラを選択してください</option>
+                </select>
+                <button class="camera-btn" id="refreshBtn">更新</button>
+            </div>
+            
+            <div class="camera-controls">
+                <button class="camera-btn" id="startBtn">撮影開始</button>
+                <button class="camera-btn" id="stopBtn" disabled>撮影停止</button>
+                <button class="camera-btn" id="fullscreenBtn">全画面表示</button>
+            </div>
+            
+            <div class="connection-info">
+                <h3>接続情報</h3>
+                <p>配信ID: <span id="peerId">準備中...</span></p>
+                <p>接続状態: <span id="connectionStatus">準備中</span></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        let localStream = null;
+        let peer = null;
+        let connections = [];
+        let isStreaming = false;
+
+        // カメラデバイスを取得
+        async function getCameraDevices() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const cameras = devices.filter(device => device.kind === 'videoinput');
+                
+                const select = document.getElementById('cameraSelect');
+                select.innerHTML = '<option value="">カメラを選択してください</option>';
+                
+                cameras.forEach(camera => {
+                    const option = document.createElement('option');
+                    option.value = camera.deviceId;
+                    option.textContent = camera.label || `カメラ ${camera.deviceId.substring(0, 8)}`;
+                    select.appendChild(option);
+                });
+                
+                return cameras;
+            } catch (error) {
+                console.error('カメラデバイスの取得に失敗:', error);
+                document.getElementById('statusText').textContent = 'カメラデバイスの取得に失敗しました';
+                return [];
+            }
+        }
+
+        // カメラストリームを開始
+        async function startCamera() {
+            try {
+                const select = document.getElementById('cameraSelect');
+                const deviceId = select.value;
+                
+                if (!deviceId) {
+                    alert('カメラを選択してください');
+                    return;
+                }
+
+                const constraints = {
+                    video: {
+                        deviceId: { exact: deviceId },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: true
+                };
+
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                const video = document.getElementById('localVideo');
+                video.srcObject = localStream;
+                
+                document.getElementById('statusText').textContent = 'カメラ開始 - 受信端末の接続を待機中...';
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                
+                isStreaming = true;
+                
+                // 既存の接続があれば配信開始
+                connections.forEach(conn => {
+                    if (conn.open) {
+                        conn.call(localStream);
+                    }
+                });
+                
+            } catch (error) {
+                console.error('カメラの開始に失敗:', error);
+                document.getElementById('statusText').textContent = 'カメラの開始に失敗しました';
+            }
+        }
+
+        // カメラストリームを停止
+        function stopCamera() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            
+            const video = document.getElementById('localVideo');
+            video.srcObject = null;
+            
+            document.getElementById('statusText').textContent = 'カメラ停止';
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            
+            isStreaming = false;
+            
+            // 接続中の通話を終了
+            connections.forEach(conn => {
+                if (conn.close) {
+                    conn.close();
+                }
+            });
+            connections = [];
+        }
+
+        // PeerJS接続を初期化
+        function initializePeer() {
+            // 固定のpeerIDを使用（配信側）
+            peer = new Peer('camera-broadcast', {
+                host: 'peerjs-server.herokuapp.com',
+                port: 443,
+                path: '/peerjs',
+                secure: true,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' }
+                    ]
+                }
+            });
+
+            peer.on('open', function(id) {
+                console.log('PeerJS接続開始:', id);
+                document.getElementById('peerId').textContent = id;
+                document.getElementById('connectionStatus').textContent = '接続可能';
+            });
+
+            peer.on('call', function(call) {
+                console.log('通話要求を受信:', call.peer);
+                
+                if (localStream) {
+                    call.answer(localStream);
+                    connections.push(call);
+                    
+                    call.on('stream', function(remoteStream) {
+                        console.log('受信側からの応答ストリーム');
+                    });
+                    
+                    call.on('close', function() {
+                        console.log('通話終了:', call.peer);
+                        connections = connections.filter(conn => conn !== call);
+                        updateConnectionStatus();
+                    });
+                    
+                    updateConnectionStatus();
+                } else {
+                    console.log('ローカルストリームが利用できません');
+                }
+            });
+
+            peer.on('connection', function(conn) {
+                console.log('データ接続:', conn.peer);
+                conn.on('open', function() {
+                    console.log('データ接続開始');
+                });
+            });
+
+            peer.on('error', function(err) {
+                console.error('PeerJS エラー:', err);
+                document.getElementById('connectionStatus').textContent = 'エラー: ' + err.type;
+            });
+        }
+
+        // 接続状態を更新
+        function updateConnectionStatus() {
+            const activeConnections = connections.filter(conn => conn.open).length;
+            document.getElementById('connectionStatus').textContent = 
+                `接続中: ${activeConnections}台`;
+        }
+
+        // 全画面表示
+        function toggleFullscreen() {
+            const video = document.getElementById('localVideo');
+            
+            if (!document.fullscreenElement) {
+                video.requestFullscreen().catch(err => {
+                    console.error('フルスクリーン表示に失敗:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // 戻るボタン
+        function goBack() {
+            stopCamera();
+            if (peer) {
+                peer.destroy();
+            }
+            window.location.href = 'index.html';
+        }
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            getCameraDevices();
+            initializePeer();
+            
+            // イベントリスナーを追加
+            document.getElementById('refreshBtn').addEventListener('click', getCameraDevices);
+            document.getElementById('startBtn').addEventListener('click', startCamera);
+            document.getElementById('stopBtn').addEventListener('click', stopCamera);
+            document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
+        });
+
+        // ページ離脱時のクリーンアップ
+        window.addEventListener('beforeunload', function() {
+            stopCamera();
+            if (peer) {
+                peer.destroy();
+            }
+        });
+    </script>
+</body>
+</html> 

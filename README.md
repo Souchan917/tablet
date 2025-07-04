@@ -1,178 +1,128 @@
-# 🚂 謎解き公演制御システム
+# 謎解きシステム
 
-謎解き公演での端末管理、映像配信、チーム進行を統合的に制御するWebアプリケーションです。
+このプロジェクトは、11チームの進捗管理と車両番号表示、カメラ配信機能を持つ謎解き用システムです。
 
-## 🌟 主な機能
+## 機能一覧
 
-### 📱 端末管理
-- **マスター画面**: 全端末の統合制御
-- **スタッフ画面**: チーム進行管理
-- **モニター画面**: 前後画面の表示制御
-- **車両番号画面**: 豪華列車風車両番号表示
-- **カメラ画面**: リアルタイム映像配信
+### 1. 入口ページ (`index.html`)
+- 各機能へのナビゲーション
+- 黒背景に黄緑色のボタン7個
 
-### 🔗 通信機能
-- **Firebase Database**: リアルタイムデータ同期
-- **WebRTC**: スマホカメラ映像配信
-- **端末間通信**: シンプルなメッセージング
-- **接続監視**: 全端末の接続状態管理
+### 2. STAFF制御 (`staff.html`)
+- 11チームの進捗バー表示
+- 個別チームの「Next」「Back」ボタン
+- 全チーム一括操作
 
-### 📹 映像配信
-- **スマホ配信**: 簡易カメラ配信システム
-- **タブレット受信**: 遅延機能付き映像表示
-- **GoPro対応**: USB接続での外部カメラ配信
-- **全画面表示**: タッチ操作での全画面切り替え
+### 3. MASTER制御 (`master.html`)
+- STAFF機能に加えて
+- 車両番号の手動加減機能
 
-## 🚀 デプロイ手順
+### 4. モニター前 (`monitor-front.html`)
+- チーム進捗に応じた画像の全画面表示
+- 自動/手動チーム選択
+- 前面用画像セット使用
 
-### 1. Firebase CLIのインストール
-```bash
-npm install -g firebase-tools
-```
+### 5. モニター後 (`monitor-back.html`)
+- モニター前と同様の機能
+- 後面用画像セット使用
 
-### 2. Firebaseにログイン
-```bash
-firebase login
-```
+### 6. 車両番号表示 (`car-number.html`)
+- 車両番号の大きな表示
+- 1秒ごとの自動減少機能
+- 手動設定機能
 
-### 3. プロジェクトの初期化
-```bash
-firebase init hosting
-```
+### 7. カメラ撮影 (`camera-capture.html`)
+- WebRTCを使用した映像配信
+- 複数カメラデバイス対応
+- PeerJSによるP2P接続
 
-### 4. デプロイ
-```bash
-firebase deploy
-```
+### 8. カメラ映像 (`camera-view.html`)
+- WebRTCによる映像受信
+- 0-30秒の遅延設定機能
+- 全画面表示対応
 
-## 📁 プロジェクト構成
+## セットアップ手順
 
+### 1. 必要なファイル構成
 ```
 tablet/
-├── index.html                    # メインHTML
-├── css/
-│   └── style.css                # スタイルシート
+├── index.html
+├── staff.html
+├── master.html
+├── monitor-front.html
+├── monitor-back.html
+├── car-number.html
+├── camera-capture.html
+├── camera-view.html
+├── styles.css
 ├── js/
-│   ├── firebase-config.js       # Firebase設定
-│   ├── app.js                   # メインアプリケーション
-│   ├── simple-communication.js  # シンプル通信システム
-│   ├── connection-manager.js    # 接続管理システム
-│   └── simple-camera.js         # スマホカメラシステム
-├── images/                      # 画像ファイル
-├── firebase.json               # Firebase設定
-├── database.rules.json         # データベースルール
-└── README.md                   # このファイル
+│   ├── firebase-config.js
+│   └── app.js
+└── images/
+    ├── front/
+    │   ├── progress_0.jpg
+    │   ├── progress_1.jpg
+    │   ├── ...
+    │   └── progress_10.jpg
+    └── back/
+        ├── progress_0.jpg
+        ├── progress_1.jpg
+        ├── ...
+        └── progress_10.jpg
 ```
 
-## 🔧 技術スタック
+### 2. 画像ファイルの準備
+- `images/front/` フォルダに `progress_0.jpg` から `progress_10.jpg` まで11枚の画像を配置
+- `images/back/` フォルダに同様に11枚の画像を配置
+- 各画像は進捗レベルに応じて表示されます
 
-- **フロントエンド**: HTML5, CSS3, JavaScript (ES6+)
-- **バックエンド**: Firebase (Hosting, Database, Authentication)
-- **通信**: WebRTC (PeerJS), Firebase Realtime Database
-- **ライブラリ**: PeerJS, Firebase SDK
+### 3. Firebase設定
+- `js/firebase-config.js` にFirebaseプロジェクトの設定が含まれています
+- 必要に応じて設定を変更してください
 
-## 📱 使用方法
-
-### 基本操作
-1. **サイトにアクセス**: `https://your-project.firebaseapp.com`
-2. **端末タイプ選択**: 画面下部のボタンで端末タイプを選択
-3. **機能利用**: 各端末に応じた機能を利用
-
-### スマホカメラ配信
-1. **スマホ**: カメラ画面 → 「📹 カメラ開始」 → 「🚀 配信開始」
-2. **タブレット**: カメラ画面 → 「📺 タブレットで表示」
-3. **自動接続**: スマホからの映像が自動で表示
-
-### マスター制御
-1. **マスター画面**: 全端末の統合制御
-2. **チーム管理**: チーム進行の一括制御
-3. **車両番号**: 豪華列車風車両番号の制御
-4. **接続監視**: 全端末の接続状態確認
-
-## 🔍 デバッグ機能
-
-### コンソールコマンド
-```javascript
-// 全システム状態確認
-debugApp.checkAll()
-
-// 通信テスト
-testComm.test()
-
-// カメラシステム
-simpleCamera.start()
-simpleCamera.stream()
-simpleCamera.stop()
+### 4. Firestoreデータベース構造
+```
+- teams/
+  - 1/
+    - progress: 0
+    - lastUpdated: timestamp
+  - 2/
+    - progress: 0
+    - lastUpdated: timestamp
+  - ...
+  - 11/
+    - progress: 0
+    - lastUpdated: timestamp
+- global/
+  - carNumber/
+    - value: 3600
+    - lastUpdated: timestamp
 ```
 
-### 接続状態確認
-- **右上の接続インジケーター**: リアルタイム接続状態
-- **緑色**: 接続中
-- **黄色**: 接続中（警告）
-- **赤色**: 切断中
+## 使用方法
 
-## ⚙️ 設定
+### 基本的な流れ
+1. `index.html` を開いて各機能にアクセス
+2. STAFF/MASTERページで進捗を管理
+3. モニターページで参加者に進捗を表示
+4. 車両番号ページで時間経過を演出
+5. カメラ機能で映像配信
 
-### Firebase設定
-`js/firebase-config.js`でFirebase設定を確認・変更：
-```javascript
-const firebaseConfig = {
-    apiKey: "your-api-key",
-    authDomain: "your-project.firebaseapp.com",
-    databaseURL: "https://your-project.firebaseio.com",
-    projectId: "your-project-id",
-    // ...
-};
-```
+### 注意事項
+- インターネット接続が必要です（Firebase、PeerJS使用）
+- カメラ機能は HTTPS 環境で使用してください
+- 複数デバイスでの同時使用を前提として設計されています
 
-### データベースルール
-`database.rules.json`でセキュリティルールを設定
+### トラブルシューティング
+- Firebase接続エラー: ブラウザの開発者ツールでコンソールを確認
+- カメラ接続エラー: カメラへのアクセス許可を確認
+- 画像表示エラー: 画像ファイルのパスと名前を確認
 
-## 🛠️ 開発
+## 技術仕様
+- Firebase Firestore (リアルタイムデータベース)
+- WebRTC + PeerJS (映像配信)
+- HTML5 Canvas (遅延処理)
+- Vanilla JavaScript (フレームワーク不使用)
 
-### ローカル開発
-1. **Firebase Emulator起動**:
-   ```bash
-   firebase emulators:start
-   ```
-
-2. **ローカルサーバー起動**:
-   ```bash
-   python -m http.server 8000
-   # または
-   npx serve .
-   ```
-
-### ファイル構成
-- **新機能追加**: `js/`フォルダに新しいJSファイルを作成
-- **スタイル追加**: `css/style.css`にCSSを追加
-- **画像追加**: `images/`フォルダに画像を配置
-
-## 📞 サポート
-
-### よくある問題
-1. **接続エラー**: インターネット接続を確認
-2. **カメラエラー**: ブラウザのカメラ許可を確認
-3. **Firebaseエラー**: 設定ファイルを確認
-
-### 技術サポート
-- **ブラウザ**: Chrome, Safari, Firefox, Edge
-- **デバイス**: PC, タブレット, スマートフォン
-- **ネットワーク**: Wi-Fi, モバイルデータ
-
-## 📄 ライセンス
-
-このプロジェクトはMITライセンスの下で公開されています。
-
-## 🤝 貢献
-
-1. このリポジトリをフォーク
-2. 機能ブランチを作成 (`git checkout -b feature/AmazingFeature`)
-3. 変更をコミット (`git commit -m 'Add some AmazingFeature'`)
-4. ブランチにプッシュ (`git push origin feature/AmazingFeature`)
-5. プルリクエストを作成
-
----
-
-**最終更新**: 2024年12月
-**バージョン**: 1.0.0 
+## ライセンス
+このプロジェクトはMITライセンスで公開されています。 

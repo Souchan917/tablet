@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>車両番号 - 謎解きシステム</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <button class="back-btn" onclick="goBack()">← 戻る</button>
+    
+    <div class="container">
+        <h1>車両番号表示</h1>
+        
+        <div class="car-number-display" id="carNumberDisplay">
+            3600
+        </div>
+        
+        <div class="car-info">
+            <p>号車</p>
+            <p id="statusText">待機中...</p>
+        </div>
+        
+        <div class="controls">
+            <button class="control-btn" id="startBtn">開始</button>
+            <button class="control-btn" id="stopBtn">停止</button>
+            <button class="control-btn" id="resetBtn">リセット</button>
+            <button class="control-btn" id="fullscreenBtn">全画面表示</button>
+        </div>
+        
+        <div class="manual-controls">
+            <h3>手動設定</h3>
+            <input type="number" id="manualInput" min="0" max="9999" value="3600">
+            <button class="control-btn" id="setBtn">設定</button>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        let currentCarNumber = 3600;
+        let isRunning = false;
+        let intervalId = null;
+        let unsubscribeCarNumber = null;
+
+        // 車両番号表示を更新
+        function updateDisplay(number) {
+            const display = document.getElementById('carNumberDisplay');
+            display.textContent = number;
+            
+            // 手動入力フィールドも更新
+            document.getElementById('manualInput').value = number;
+        }
+
+        // 自動カウントダウン開始
+        function startCountdown() {
+            if (isRunning) return;
+            
+            isRunning = true;
+            document.getElementById('statusText').textContent = '自動減少中...';
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            
+            intervalId = setInterval(async () => {
+                if (currentCarNumber > 0) {
+                    const newNumber = currentCarNumber - 1;
+                    await window.PuzzleSystem.saveCarNumber(newNumber);
+                } else {
+                    stopCountdown();
+                }
+            }, 1000);
+        }
+
+        // 自動カウントダウン停止
+        function stopCountdown() {
+            if (!isRunning) return;
+            
+            isRunning = false;
+            document.getElementById('statusText').textContent = '停止中';
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+            }
+        }
+
+        // リセット
+        async function resetCarNumber() {
+            stopCountdown();
+            await window.PuzzleSystem.saveCarNumber(3600);
+            document.getElementById('statusText').textContent = 'リセット完了';
+        }
+
+        // 手動設定
+        async function setManualNumber() {
+            const input = document.getElementById('manualInput');
+            const number = parseInt(input.value) || 0;
+            await window.PuzzleSystem.saveCarNumber(number);
+            document.getElementById('statusText').textContent = '手動設定完了';
+        }
+
+        // 全画面表示
+        function toggleFullscreen() {
+            const container = document.querySelector('.container');
+            
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().catch(err => {
+                    console.error('フルスクリーン表示に失敗:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // 車両番号の変更を監視
+        function watchCarNumberChanges() {
+            unsubscribeCarNumber = window.PuzzleSystem.watchCarNumber((number) => {
+                currentCarNumber = number;
+                updateDisplay(number);
+            });
+        }
+
+        // 戻るボタン
+        function goBack() {
+            stopCountdown();
+            if (unsubscribeCarNumber) {
+                unsubscribeCarNumber();
+            }
+            window.location.href = 'index.html';
+        }
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            // Firebase接続後に車両番号を読み込み
+            setTimeout(async () => {
+                await window.PuzzleSystem.loadCarNumber();
+                watchCarNumberChanges();
+            }, 1000);
+            
+            // イベントリスナーを追加
+            document.getElementById('startBtn').addEventListener('click', startCountdown);
+            document.getElementById('stopBtn').addEventListener('click', stopCountdown);
+            document.getElementById('resetBtn').addEventListener('click', resetCarNumber);
+            document.getElementById('setBtn').addEventListener('click', setManualNumber);
+            document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
+            
+            // 初期状態設定
+            document.getElementById('stopBtn').disabled = true;
+        });
+
+        // ページ離脱時のクリーンアップ
+        window.addEventListener('beforeunload', function() {
+            stopCountdown();
+            if (unsubscribeCarNumber) {
+                unsubscribeCarNumber();
+            }
+        });
+    </script>
+</body>
+</html> 

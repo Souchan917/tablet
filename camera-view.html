@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カメラ映像 - 謎解きシステム</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <button class="back-btn" onclick="goBack()">← 戻る</button>
+    
+    <div class="container">
+        <h1>カメラ映像</h1>
+        
+        <div class="camera-container">
+            <div class="video-container">
+                <video id="remoteVideo" autoplay playsinline></video>
+                <canvas id="delayCanvas" style="display: none;"></canvas>
+                <p id="statusText">配信に接続中...</p>
+            </div>
+            
+            <div class="delay-controls">
+                <label for="delaySlider">遅延時間:</label>
+                <input type="range" id="delaySlider" min="0" max="30" value="5" step="1" class="delay-slider">
+                <span id="delayValue">5秒</span>
+            </div>
+            
+            <div class="camera-controls">
+                <button class="camera-btn" id="connectBtn">接続開始</button>
+                <button class="camera-btn" id="disconnectBtn" disabled>接続終了</button>
+                <button class="camera-btn" id="fullscreenBtn">全画面表示</button>
+            </div>
+            
+            <div class="connection-info">
+                <h3>接続情報</h3>
+                <p>受信ID: <span id="peerId">準備中...</span></p>
+                <p>接続状態: <span id="connectionStatus">準備中</span></p>
+                <p>遅延状態: <span id="delayStatus">無効</span></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        let peer = null;
+        let call = null;
+        let remoteStream = null;
+        let delayBuffer = [];
+        let delayInterval = null;
+        let isConnected = false;
+        let delaySeconds = 5;
+
+        // PeerJS接続を初期化
+        function initializePeer() {
+            // 受信側のランダムなpeerIDを生成
+            const peerId = 'camera-viewer-' + Math.random().toString(36).substr(2, 9);
+            
+            peer = new Peer(peerId, {
+                host: 'peerjs-server.herokuapp.com',
+                port: 443,
+                path: '/peerjs',
+                secure: true,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' }
+                    ]
+                }
+            });
+
+            peer.on('open', function(id) {
+                console.log('PeerJS接続開始:', id);
+                document.getElementById('peerId').textContent = id;
+                document.getElementById('connectionStatus').textContent = '接続可能';
+            });
+
+            peer.on('call', function(incomingCall) {
+                console.log('通話要求を受信');
+                incomingCall.answer();
+                
+                incomingCall.on('stream', function(stream) {
+                    console.log('リモートストリーム受信');
+                    remoteStream = stream;
+                    handleRemoteStream(stream);
+                });
+                
+                incomingCall.on('close', function() {
+                    console.log('通話終了');
+                    disconnectFromBroadcast();
+                });
+            });
+
+            peer.on('error', function(err) {
+                console.error('PeerJS エラー:', err);
+                document.getElementById('connectionStatus').textContent = 'エラー: ' + err.type;
+            });
+        }
+
+        // 配信に接続
+        function connectToBroadcast() {
+            if (!peer) {
+                console.error('PeerJS が初期化されていません');
+                return;
+            }
+
+            try {
+                call = peer.call('camera-broadcast');
+                
+                call.on('stream', function(stream) {
+                    console.log('配信ストリームを受信');
+                    remoteStream = stream;
+                    handleRemoteStream(stream);
+                    
+                    document.getElementById('statusText').textContent = '配信を受信中...';
+                    document.getElementById('connectionStatus').textContent = '接続済み';
+                    document.getElementById('connectBtn').disabled = true;
+                    document.getElementById('disconnectBtn').disabled = false;
+                    
+                    isConnected = true;
+                });
+                
+                call.on('close', function() {
+                    console.log('配信終了');
+                    disconnectFromBroadcast();
+                });
+                
+            } catch (error) {
+                console.error('配信への接続に失敗:', error);
+                document.getElementById('statusText').textContent = '配信への接続に失敗しました';
+            }
+        }
+
+        // 配信から切断
+        function disconnectFromBroadcast() {
+            if (call) {
+                call.close();
+                call = null;
+            }
+            
+            if (remoteStream) {
+                remoteStream.getTracks().forEach(track => track.stop());
+                remoteStream = null;
+            }
+            
+            const video = document.getElementById('remoteVideo');
+            video.srcObject = null;
+            
+            stopDelayBuffer();
+            
+            document.getElementById('statusText').textContent = '配信を停止しました';
+            document.getElementById('connectionStatus').textContent = '切断済み';
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('disconnectBtn').disabled = true;
+            
+            isConnected = false;
+        }
+
+        // リモートストリームを処理
+        function handleRemoteStream(stream) {
+            if (delaySeconds > 0) {
+                startDelayBuffer(stream);
+            } else {
+                // 遅延なしで直接表示
+                const video = document.getElementById('remoteVideo');
+                video.srcObject = stream;
+                document.getElementById('delayStatus').textContent = '無効';
+            }
+        }
+
+        // 遅延バッファを開始
+        function startDelayBuffer(stream) {
+            const video = document.getElementById('remoteVideo');
+            const canvas = document.getElementById('delayCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 一時的なビデオ要素を作成
+            const tempVideo = document.createElement('video');
+            tempVideo.srcObject = stream;
+            tempVideo.muted = true;
+            tempVideo.autoplay = true;
+            tempVideo.playsinline = true;
+            
+            tempVideo.addEventListener('loadedmetadata', function() {
+                canvas.width = tempVideo.videoWidth;
+                canvas.height = tempVideo.videoHeight;
+                
+                // 遅延バッファをクリア
+                delayBuffer = [];
+                
+                // フレームキャプチャを開始
+                delayInterval = setInterval(() => {
+                    if (tempVideo.readyState === tempVideo.HAVE_ENOUGH_DATA) {
+                        ctx.drawImage(tempVideo, 0, 0);
+                        const imageData = canvas.toDataURL('image/jpeg', 0.8);
+                        
+                        delayBuffer.push({
+                            data: imageData,
+                            timestamp: Date.now()
+                        });
+                        
+                        // 遅延時間を超えた古いフレームを表示
+                        const currentTime = Date.now();
+                        const targetTime = currentTime - (delaySeconds * 1000);
+                        
+                        const frameToShow = delayBuffer.find(frame => 
+                            frame.timestamp <= targetTime
+                        );
+                        
+                        if (frameToShow) {
+                            const img = new Image();
+                            img.onload = function() {
+                                ctx.drawImage(img, 0, 0);
+                                
+                                // canvas を video 要素に表示
+                                canvas.toBlob(function(blob) {
+                                    const url = URL.createObjectURL(blob);
+                                    const newVideo = document.createElement('video');
+                                    newVideo.src = url;
+                                    newVideo.autoplay = true;
+                                    newVideo.muted = true;
+                                    newVideo.playsinline = true;
+                                    
+                                    // 古いビデオを置き換え
+                                    if (video.srcObject) {
+                                        URL.revokeObjectURL(video.src);
+                                    }
+                                    video.src = url;
+                                }, 'video/webm');
+                            };
+                            img.src = frameToShow.data;
+                            
+                            // 表示済みのフレームを削除
+                            delayBuffer = delayBuffer.filter(frame => 
+                                frame.timestamp > targetTime
+                            );
+                        }
+                    }
+                }, 100); // 100ms間隔でフレームキャプチャ
+                
+                document.getElementById('delayStatus').textContent = `有効 (${delaySeconds}秒)`;
+            });
+        }
+
+        // 遅延バッファを停止
+        function stopDelayBuffer() {
+            if (delayInterval) {
+                clearInterval(delayInterval);
+                delayInterval = null;
+            }
+            delayBuffer = [];
+        }
+
+        // 遅延時間を更新
+        function updateDelayTime() {
+            const slider = document.getElementById('delaySlider');
+            delaySeconds = parseInt(slider.value);
+            document.getElementById('delayValue').textContent = delaySeconds + '秒';
+            
+            // 接続中の場合は遅延設定を再適用
+            if (isConnected && remoteStream) {
+                handleRemoteStream(remoteStream);
+            }
+        }
+
+        // 全画面表示
+        function toggleFullscreen() {
+            const video = document.getElementById('remoteVideo');
+            
+            if (!document.fullscreenElement) {
+                video.requestFullscreen().catch(err => {
+                    console.error('フルスクリーン表示に失敗:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // 戻るボタン
+        function goBack() {
+            disconnectFromBroadcast();
+            if (peer) {
+                peer.destroy();
+            }
+            window.location.href = 'index.html';
+        }
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializePeer();
+            
+            // イベントリスナーを追加
+            document.getElementById('connectBtn').addEventListener('click', connectToBroadcast);
+            document.getElementById('disconnectBtn').addEventListener('click', disconnectFromBroadcast);
+            document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
+            document.getElementById('delaySlider').addEventListener('input', updateDelayTime);
+            
+            // 初期遅延値を設定
+            updateDelayTime();
+        });
+
+        // ページ離脱時のクリーンアップ
+        window.addEventListener('beforeunload', function() {
+            disconnectFromBroadcast();
+            if (peer) {
+                peer.destroy();
+            }
+        });
+    </script>
+</body>
+</html> 
