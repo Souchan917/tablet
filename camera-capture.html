@@ -45,6 +45,17 @@
                 <p>フレームレート: <span id="fpsStats">--- fps</span></p>
                 <p>解像度: <span id="resolutionStats">---x---</span></p>
             </div>
+            
+            <div class="troubleshooting">
+                <h3>⚠️ トラブルシューティング</h3>
+                <ul>
+                    <li><strong>カメラアクセス:</strong> ブラウザでカメラのアクセス許可を確認</li>
+                    <li><strong>HTTPS必須:</strong> localhost:8443 で実行（HTTPでは動作しません）</li>
+                    <li><strong>デバッグ:</strong> 開発者ツールのコンソールでエラーを確認</li>
+                    <li><strong>配信ID:</strong> 正しくコピーされていることを確認</li>
+                    <li><strong>接続待機:</strong> 配信開始後に受信側を接続してください</li>
+                </ul>
+            </div>
         </div>
     </div>
 
@@ -218,46 +229,55 @@
             // 動的なpeerIDを生成（配信側）
             const peerId = 'camera-broadcast-' + Math.random().toString(36).substr(2, 9);
             
+            console.log('PeerJS初期化開始:', peerId);
+            
             peer = new Peer(peerId, {
                 host: '0.peerjs.com',
                 port: 443,
                 path: '/',
                 secure: true,
+                debug: 2, // デバッグレベルを追加
                 config: {
                     iceServers: [
                         { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' }
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' },
+                        { urls: 'stun:stun3.l.google.com:19302' }
                     ]
                 }
             });
 
             peer.on('open', function(id) {
-                console.log('PeerJS接続開始:', id);
+                console.log('✅ PeerJS接続成功:', id);
                 document.getElementById('peerId').textContent = id;
                 document.getElementById('connectionStatus').textContent = '接続可能';
                 document.getElementById('copyIdBtn').disabled = false;
+                
+                // 接続成功をユーザーに通知
+                document.getElementById('statusText').textContent = '配信準備完了 - 配信IDをコピーして共有してください';
             });
 
             peer.on('call', function(call) {
-                console.log('通話要求を受信:', call.peer);
+                console.log('🔔 通話要求を受信:', call.peer);
                 
                 if (localStream) {
+                    console.log('📡 ローカルストリームで応答中...');
                     call.answer(localStream);
                     connections.push(call);
                     
                     // 接続後の処理
                     call.on('stream', function(remoteStream) {
-                        console.log('受信側からの応答ストリーム');
+                        console.log('📺 受信側からの応答ストリーム');
                     });
                     
                     call.on('close', function() {
-                        console.log('通話終了:', call.peer);
+                        console.log('📴 通話終了:', call.peer);
                         connections = connections.filter(conn => conn !== call);
                         updateConnectionStatus();
                     });
                     
                     call.on('error', function(error) {
-                        console.error('通話エラー:', error);
+                        console.error('❌ 通話エラー:', error);
                         connections = connections.filter(conn => conn !== call);
                         updateConnectionStatus();
                     });
@@ -265,8 +285,10 @@
                     // 配信品質を最適化
                     sendStreamToConnection(call);
                     updateConnectionStatus();
+                    
+                    console.log('✅ 新しい視聴者が接続しました:', call.peer);
                 } else {
-                    console.log('ローカルストリームが利用できません');
+                    console.error('❌ ローカルストリームが利用できません');
                     call.close();
                 }
             });
@@ -279,11 +301,33 @@
             });
 
             peer.on('error', function(err) {
-                console.error('PeerJS エラー:', err);
+                console.error('❌ PeerJS エラー:', err);
                 document.getElementById('connectionStatus').textContent = 'エラー: ' + err.type;
+                
+                // エラーの種類に応じて詳細なメッセージを表示
+                let errorMessage = 'エラーが発生しました: ';
+                switch (err.type) {
+                    case 'network':
+                        errorMessage += 'ネットワーク接続エラー';
+                        break;
+                    case 'server-error':
+                        errorMessage += 'サーバーエラー';
+                        break;
+                    case 'unavailable-id':
+                        errorMessage += 'IDが使用中です';
+                        break;
+                    case 'browser-incompatible':
+                        errorMessage += 'ブラウザが対応していません';
+                        break;
+                    default:
+                        errorMessage += err.type;
+                }
+                
+                document.getElementById('statusText').textContent = errorMessage;
                 
                 // 接続エラーの場合は再接続を試行
                 if (err.type === 'network' || err.type === 'server-error') {
+                    console.log('🔄 5秒後に自動再接続を試行します...');
                     setTimeout(() => {
                         initializePeer();
                     }, 5000);

@@ -52,6 +52,17 @@
                 <p>受信フレームレート: <span id="receiveFpsStats">--- fps</span></p>
                 <p>パケットロス: <span id="packetLossStats">--- %</span></p>
             </div>
+            
+            <div class="troubleshooting">
+                <h3>⚠️ トラブルシューティング</h3>
+                <ul>
+                    <li><strong>配信ID:</strong> 配信側から正しいIDをコピーして貼り付け</li>
+                    <li><strong>接続順序:</strong> 配信側を先に開始してから受信側を接続</li>
+                    <li><strong>ネットワーク:</strong> 同じネットワークまたはインターネット経由</li>
+                    <li><strong>デバッグ:</strong> 開発者ツールのコンソールでエラーを確認</li>
+                    <li><strong>タイムアウト:</strong> 10秒以内に接続されない場合は再試行</li>
+                </ul>
+            </div>
         </div>
     </div>
 
@@ -78,23 +89,31 @@
             // 受信側のランダムなpeerIDを生成
             const peerId = 'camera-viewer-' + Math.random().toString(36).substr(2, 9);
             
+            console.log('🔄 PeerJS初期化開始 (受信側):', peerId);
+            
             peer = new Peer(peerId, {
                 host: '0.peerjs.com',
                 port: 443,
                 path: '/',
                 secure: true,
+                debug: 2, // デバッグレベルを追加
                 config: {
                     iceServers: [
                         { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' }
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' },
+                        { urls: 'stun:stun3.l.google.com:19302' }
                     ]
                 }
             });
 
             peer.on('open', function(id) {
-                console.log('PeerJS接続開始:', id);
+                console.log('✅ PeerJS接続成功 (受信側):', id);
                 document.getElementById('peerId').textContent = id;
                 document.getElementById('connectionStatus').textContent = '接続可能';
+                
+                // 接続成功をユーザーに通知
+                document.getElementById('statusText').textContent = '受信準備完了 - 配信IDを入力して接続してください';
             });
 
             peer.on('call', function(incomingCall) {
@@ -119,11 +138,33 @@
             });
 
             peer.on('error', function(err) {
-                console.error('PeerJS エラー:', err);
+                console.error('❌ PeerJS エラー:', err);
                 document.getElementById('connectionStatus').textContent = 'エラー: ' + err.type;
+                
+                // エラーの種類に応じて詳細なメッセージを表示
+                let errorMessage = 'エラーが発生しました: ';
+                switch (err.type) {
+                    case 'network':
+                        errorMessage += 'ネットワーク接続エラー';
+                        break;
+                    case 'server-error':
+                        errorMessage += 'サーバーエラー';
+                        break;
+                    case 'peer-unavailable':
+                        errorMessage += '配信IDが見つかりません';
+                        break;
+                    case 'browser-incompatible':
+                        errorMessage += 'ブラウザが対応していません';
+                        break;
+                    default:
+                        errorMessage += err.type;
+                }
+                
+                document.getElementById('statusText').textContent = errorMessage;
                 
                 // 自動再接続
                 if (err.type === 'network' || err.type === 'server-error') {
+                    console.log('🔄 5秒後に自動再接続を試行します...');
                     setTimeout(() => {
                         initializePeer();
                     }, 5000);
@@ -160,14 +201,19 @@
             broadcastId = inputId;
 
             try {
+                console.log('🔄 配信に接続中...', broadcastId);
+                document.getElementById('statusText').textContent = '配信に接続中...';
+                
                 call = peer.call(broadcastId);
                 
                 if (!call) {
                     throw new Error('配信IDが見つかりません');
                 }
                 
+                console.log('📞 通話要求を送信:', broadcastId);
+                
                 call.on('stream', function(stream) {
-                    console.log('配信ストリームを受信');
+                    console.log('✅ 配信ストリームを受信');
                     remoteStream = stream;
                     handleRemoteStream(stream);
                     
@@ -177,20 +223,29 @@
                     document.getElementById('disconnectBtn').disabled = false;
                     
                     isConnected = true;
+                    console.log('🎬 映像配信開始');
                 });
                 
                 call.on('close', function() {
-                    console.log('配信終了');
+                    console.log('📴 配信終了');
                     disconnectFromBroadcast();
                 });
                 
                 call.on('error', function(error) {
-                    console.error('接続エラー:', error);
-                    document.getElementById('statusText').textContent = '接続エラー: ' + error.message;
+                    console.error('❌ 通話エラー:', error);
+                    document.getElementById('statusText').textContent = '通話エラー: ' + error.message;
                 });
                 
+                // 接続状態を監視
+                setTimeout(() => {
+                    if (!isConnected) {
+                        console.warn('⚠️ 接続タイムアウト - 配信IDまたは配信状態を確認してください');
+                        document.getElementById('statusText').textContent = '接続タイムアウト - 配信IDまたは配信状態を確認してください';
+                    }
+                }, 10000); // 10秒でタイムアウト
+                
             } catch (error) {
-                console.error('配信への接続に失敗:', error);
+                console.error('❌ 配信への接続に失敗:', error);
                 document.getElementById('statusText').textContent = '配信への接続に失敗: ' + error.message;
             }
         }

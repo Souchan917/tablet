@@ -298,6 +298,35 @@ video {
     font-family: monospace;
 }
 
+/* トラブルシューティング */
+.troubleshooting {
+    background-color: #2a1a1a;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+    border: 1px solid #ff6b6b;
+}
+
+.troubleshooting h3 {
+    color: #ff6b6b;
+    margin-bottom: 10px;
+}
+
+.troubleshooting ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.troubleshooting li {
+    margin: 8px 0;
+    color: #ccc;
+    line-height: 1.4;
+}
+
+.troubleshooting li strong {
+    color: #ff6b6b;
+}
+
 /* 接続情報の改良 */
 .connection-info {
     background-color: #222;
