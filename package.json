@@ -1,0 +1,24 @@
+{
+  "name": "tablet-camera-system",
+  "version": "1.0.0",
+  "description": "謎解きシステム - カメラ映像配信機能",
+  "main": "start-https-server.js",
+  "scripts": {
+    "start": "node start-https-server.js",
+    "dev": "node start-https-server.js"
+  },
+  "keywords": [
+    "webrtc",
+    "camera",
+    "streaming",
+    "delay",
+    "mystery-solving"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+} 

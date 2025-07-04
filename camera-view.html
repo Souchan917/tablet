@@ -25,10 +25,17 @@
                 <span id="delayValue">5秒</span>
             </div>
             
+            <div class="broadcast-id-input">
+                <label for="broadcastIdInput">配信ID:</label>
+                <input type="text" id="broadcastIdInput" placeholder="配信IDを入力してください" style="width: 300px; padding: 8px; margin: 0 10px;">
+                <button class="camera-btn" id="pasteIdBtn">貼り付け</button>
+            </div>
+            
             <div class="camera-controls">
                 <button class="camera-btn" id="connectBtn">接続開始</button>
                 <button class="camera-btn" id="disconnectBtn" disabled>接続終了</button>
                 <button class="camera-btn" id="fullscreenBtn">全画面表示</button>
+                <button class="camera-btn" id="recordBtn" disabled>録画開始</button>
             </div>
             
             <div class="connection-info">
@@ -36,6 +43,14 @@
                 <p>受信ID: <span id="peerId">準備中...</span></p>
                 <p>接続状態: <span id="connectionStatus">準備中</span></p>
                 <p>遅延状態: <span id="delayStatus">無効</span></p>
+                <p>バッファ状態: <span id="bufferStatus">---</span></p>
+            </div>
+            
+            <div class="receive-stats">
+                <h3>受信統計</h3>
+                <p>受信ビットレート: <span id="receiveBitrateStats">--- kbps</span></p>
+                <p>受信フレームレート: <span id="receiveFpsStats">--- fps</span></p>
+                <p>パケットロス: <span id="packetLossStats">--- %</span></p>
             </div>
         </div>
     </div>
@@ -48,10 +63,15 @@
         let peer = null;
         let call = null;
         let remoteStream = null;
-        let delayBuffer = [];
-        let delayInterval = null;
+        let frameQueue = [];
+        let processor = null;
+        let generator = null;
+        let canvas = null;
+        let ctx = null;
         let isConnected = false;
-        let delaySeconds = 5;
+        let delayMs = 5000; // 5秒デフォルト
+        let isProcessing = false;
+        let broadcastId = null;
 
         // PeerJS接続を初期化
         function initializePeer() {
@@ -59,13 +79,14 @@
             const peerId = 'camera-viewer-' + Math.random().toString(36).substr(2, 9);
             
             peer = new Peer(peerId, {
-                host: 'peerjs-server.herokuapp.com',
+                host: '0.peerjs.com',
                 port: 443,
-                path: '/peerjs',
+                path: '/',
                 secure: true,
                 config: {
                     iceServers: [
-                        { urls: 'stun:stun.l.google.com:19302' }
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
                     ]
                 }
             });
@@ -90,11 +111,32 @@
                     console.log('通話終了');
                     disconnectFromBroadcast();
                 });
+                
+                incomingCall.on('error', function(error) {
+                    console.error('通話エラー:', error);
+                    disconnectFromBroadcast();
+                });
             });
 
             peer.on('error', function(err) {
                 console.error('PeerJS エラー:', err);
                 document.getElementById('connectionStatus').textContent = 'エラー: ' + err.type;
+                
+                // 自動再接続
+                if (err.type === 'network' || err.type === 'server-error') {
+                    setTimeout(() => {
+                        initializePeer();
+                    }, 5000);
+                }
+            });
+        }
+
+        // 配信IDを貼り付け
+        function pasteBroadcastId() {
+            navigator.clipboard.readText().then(text => {
+                document.getElementById('broadcastIdInput').value = text;
+            }).catch(err => {
+                console.warn('クリップボード読み取りエラー:', err);
             });
         }
 
@@ -105,8 +147,24 @@
                 return;
             }
 
+            // 入力フィールドから配信IDを取得
+            const inputField = document.getElementById('broadcastIdInput');
+            const inputId = inputField.value.trim();
+            
+            if (!inputId) {
+                alert('配信IDを入力してください');
+                inputField.focus();
+                return;
+            }
+            
+            broadcastId = inputId;
+
             try {
-                call = peer.call('camera-broadcast');
+                call = peer.call(broadcastId);
+                
+                if (!call) {
+                    throw new Error('配信IDが見つかりません');
+                }
                 
                 call.on('stream', function(stream) {
                     console.log('配信ストリームを受信');
@@ -126,9 +184,14 @@
                     disconnectFromBroadcast();
                 });
                 
+                call.on('error', function(error) {
+                    console.error('接続エラー:', error);
+                    document.getElementById('statusText').textContent = '接続エラー: ' + error.message;
+                });
+                
             } catch (error) {
                 console.error('配信への接続に失敗:', error);
-                document.getElementById('statusText').textContent = '配信への接続に失敗しました';
+                document.getElementById('statusText').textContent = '配信への接続に失敗: ' + error.message;
             }
         }
 
@@ -139,15 +202,11 @@
                 call = null;
             }
             
-            if (remoteStream) {
-                remoteStream.getTracks().forEach(track => track.stop());
-                remoteStream = null;
-            }
+            stopDelayBuffer();
             
             const video = document.getElementById('remoteVideo');
             video.srcObject = null;
-            
-            stopDelayBuffer();
+            video.src = '';
             
             document.getElementById('statusText').textContent = '配信を停止しました';
             document.getElementById('connectionStatus').textContent = '切断済み';
@@ -155,11 +214,14 @@
             document.getElementById('disconnectBtn').disabled = true;
             
             isConnected = false;
+            remoteStream = null;
         }
 
         // リモートストリームを処理
         function handleRemoteStream(stream) {
-            if (delaySeconds > 0) {
+            console.log('ストリーム処理開始, 遅延:', delayMs + 'ms');
+            
+            if (delayMs > 0) {
                 startDelayBuffer(stream);
             } else {
                 // 遅延なしで直接表示
@@ -169,8 +231,130 @@
             }
         }
 
-        // 遅延バッファを開始
+        // MediaStreamTrackProcessor を使用した高性能遅延バッファ
         function startDelayBuffer(stream) {
+            try {
+                // 前の処理を停止
+                stopDelayBuffer();
+                
+                const videoTrack = stream.getVideoTracks()[0];
+                if (!videoTrack) {
+                    console.error('ビデオトラックが見つかりません');
+                    return;
+                }
+
+                // MediaStreamTrackProcessor をサポートしているかチェック
+                if (typeof MediaStreamTrackProcessor === 'undefined') {
+                    console.warn('MediaStreamTrackProcessor が利用できません。従来の方法を使用します。');
+                    fallbackDelayBuffer(stream);
+                    return;
+                }
+
+                processor = new MediaStreamTrackProcessor({track: videoTrack});
+                const reader = processor.readable.getReader();
+                
+                canvas = document.getElementById('delayCanvas');
+                ctx = canvas.getContext('2d');
+                
+                // フレームキューをクリア
+                frameQueue = [];
+                isProcessing = true;
+                
+                // フレーム読み取りループ
+                async function readFrames() {
+                    try {
+                        while (isProcessing) {
+                            const result = await reader.read();
+                            if (result.done) break;
+                            
+                            const frame = result.value;
+                            const timestamp = performance.now();
+                            
+                            // フレームをキューに追加
+                            frameQueue.push({
+                                frame: frame,
+                                timestamp: timestamp
+                            });
+                            
+                            // キューのサイズを制限（メモリ使用量を抑制）
+                            if (frameQueue.length > 300) { // 10秒分程度
+                                const oldFrame = frameQueue.shift();
+                                oldFrame.frame.close();
+                            }
+                        }
+                    } catch (error) {
+                        console.error('フレーム読み取りエラー:', error);
+                    }
+                }
+                
+                // 遅延描画ループ
+                function renderDelayedFrames() {
+                    if (!isProcessing) return;
+                    
+                    const now = performance.now();
+                    const targetTime = now - delayMs;
+                    
+                    // 遅延時間に達したフレームを検索
+                    const frameIndex = frameQueue.findIndex(item => item.timestamp <= targetTime);
+                    
+                    if (frameIndex !== -1) {
+                        const frameItem = frameQueue[frameIndex];
+                        const frame = frameItem.frame;
+                        
+                        try {
+                            // キャンバスにフレームを描画
+                            canvas.width = frame.displayWidth || 640;
+                            canvas.height = frame.displayHeight || 360;
+                            ctx.drawImage(frame, 0, 0);
+                            
+                            // キャンバスをビデオ要素に表示
+                            const video = document.getElementById('remoteVideo');
+                            
+                            // MediaSourceを使ってキャンバスをビデオとして表示
+                            canvas.toBlob(function(blob) {
+                                if (blob) {
+                                    const url = URL.createObjectURL(blob);
+                                    
+                                    // 前のURLをクリーンアップ
+                                    if (video.src && video.src.startsWith('blob:')) {
+                                        URL.revokeObjectURL(video.src);
+                                    }
+                                    
+                                    video.src = url;
+                                    video.currentTime = 0;
+                                }
+                            }, 'image/jpeg', 0.9);
+                            
+                        } catch (error) {
+                            console.error('フレーム描画エラー:', error);
+                        }
+                        
+                        // 使用済みフレームをクリーンアップ
+                        for (let i = 0; i <= frameIndex; i++) {
+                            frameQueue[i].frame.close();
+                        }
+                        frameQueue.splice(0, frameIndex + 1);
+                    }
+                    
+                    requestAnimationFrame(renderDelayedFrames);
+                }
+                
+                // 処理を開始
+                readFrames();
+                renderDelayedFrames();
+                
+                document.getElementById('delayStatus').textContent = `有効 (${delayMs/1000}秒)`;
+                
+            } catch (error) {
+                console.error('遅延バッファの開始に失敗:', error);
+                fallbackDelayBuffer(stream);
+            }
+        }
+
+        // フォールバック遅延バッファ（従来の方法）
+        function fallbackDelayBuffer(stream) {
+            console.log('フォールバック遅延バッファを使用');
+            
             const video = document.getElementById('remoteVideo');
             const canvas = document.getElementById('delayCanvas');
             const ctx = canvas.getContext('2d');
@@ -182,81 +366,122 @@
             tempVideo.autoplay = true;
             tempVideo.playsinline = true;
             
+            let frameBuffer = [];
+            isProcessing = true;
+            
             tempVideo.addEventListener('loadedmetadata', function() {
-                canvas.width = tempVideo.videoWidth;
-                canvas.height = tempVideo.videoHeight;
+                canvas.width = tempVideo.videoWidth || 640;
+                canvas.height = tempVideo.videoHeight || 360;
                 
-                // 遅延バッファをクリア
-                delayBuffer = [];
-                
-                // フレームキャプチャを開始
-                delayInterval = setInterval(() => {
-                    if (tempVideo.readyState === tempVideo.HAVE_ENOUGH_DATA) {
-                        ctx.drawImage(tempVideo, 0, 0);
-                        const imageData = canvas.toDataURL('image/jpeg', 0.8);
+                function captureFrame() {
+                    if (!isProcessing) return;
+                    
+                    if (tempVideo.readyState >= 2) {
+                        ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
+                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                         
-                        delayBuffer.push({
+                        frameBuffer.push({
                             data: imageData,
-                            timestamp: Date.now()
+                            timestamp: performance.now()
                         });
                         
-                        // 遅延時間を超えた古いフレームを表示
-                        const currentTime = Date.now();
-                        const targetTime = currentTime - (delaySeconds * 1000);
+                        // バッファサイズ制限
+                        if (frameBuffer.length > 300) {
+                            frameBuffer.shift();
+                        }
                         
-                        const frameToShow = delayBuffer.find(frame => 
-                            frame.timestamp <= targetTime
-                        );
+                        // 遅延フレームを表示
+                        const now = performance.now();
+                        const targetTime = now - delayMs;
+                        const frameToShow = frameBuffer.find(frame => frame.timestamp <= targetTime);
                         
                         if (frameToShow) {
-                            const img = new Image();
-                            img.onload = function() {
-                                ctx.drawImage(img, 0, 0);
-                                
-                                // canvas を video 要素に表示
-                                canvas.toBlob(function(blob) {
-                                    const url = URL.createObjectURL(blob);
-                                    const newVideo = document.createElement('video');
-                                    newVideo.src = url;
-                                    newVideo.autoplay = true;
-                                    newVideo.muted = true;
-                                    newVideo.playsinline = true;
-                                    
-                                    // 古いビデオを置き換え
-                                    if (video.srcObject) {
-                                        URL.revokeObjectURL(video.src);
-                                    }
-                                    video.src = url;
-                                }, 'video/webm');
-                            };
-                            img.src = frameToShow.data;
-                            
-                            // 表示済みのフレームを削除
-                            delayBuffer = delayBuffer.filter(frame => 
-                                frame.timestamp > targetTime
-                            );
+                            ctx.putImageData(frameToShow.data, 0, 0);
+                            frameBuffer = frameBuffer.filter(frame => frame.timestamp > targetTime);
                         }
                     }
-                }, 100); // 100ms間隔でフレームキャプチャ
+                    
+                    setTimeout(captureFrame, 33); // 約30fps
+                }
                 
-                document.getElementById('delayStatus').textContent = `有効 (${delaySeconds}秒)`;
+                captureFrame();
             });
+            
+            // キャンバスをビデオ要素として表示
+            const canvasStream = canvas.captureStream(30);
+            video.srcObject = canvasStream;
+            
+            document.getElementById('delayStatus').textContent = `有効 (${delayMs/1000}秒) - フォールバック`;
         }
 
         // 遅延バッファを停止
         function stopDelayBuffer() {
-            if (delayInterval) {
-                clearInterval(delayInterval);
-                delayInterval = null;
+            isProcessing = false;
+            
+            if (processor) {
+                try {
+                    processor.readable.cancel();
+                } catch (e) {
+                    console.warn('Processor停止エラー:', e);
+                }
+                processor = null;
             }
-            delayBuffer = [];
+            
+            if (generator) {
+                try {
+                    generator.close();
+                } catch (e) {
+                    console.warn('Generator停止エラー:', e);
+                }
+                generator = null;
+            }
+            
+            // フレームキューをクリーンアップ
+            frameQueue.forEach(item => {
+                if (item.frame && item.frame.close) {
+                    item.frame.close();
+                }
+            });
+            frameQueue = [];
+        }
+
+        // 受信統計を更新
+        function updateReceiveStats() {
+            if (!call || !call.peerConnection) return;
+            
+            call.peerConnection.getStats().then(stats => {
+                stats.forEach(report => {
+                    if (report.type === 'inbound-rtp' && report.mediaType === 'video') {
+                        const bitrate = Math.round((report.bytesReceived * 8) / 1000); // kbps
+                        const fps = report.framesPerSecond || 0;
+                        const packetsLost = report.packetsLost || 0;
+                        const packetsReceived = report.packetsReceived || 1;
+                        const lossPercentage = ((packetsLost / (packetsLost + packetsReceived)) * 100).toFixed(2);
+                        
+                        document.getElementById('receiveBitrateStats').textContent = bitrate + ' kbps';
+                        document.getElementById('receiveFpsStats').textContent = fps + ' fps';
+                        document.getElementById('packetLossStats').textContent = lossPercentage + ' %';
+                    }
+                });
+            }).catch(err => {
+                console.warn('受信統計取得エラー:', err);
+            });
+            
+            // バッファ状態を更新
+            const bufferLength = frameQueue.length;
+            const bufferTimeMs = bufferLength > 0 ? 
+                (performance.now() - frameQueue[0].timestamp) : 0;
+            document.getElementById('bufferStatus').textContent = 
+                `${bufferLength}フレーム (${Math.round(bufferTimeMs)}ms)`;
         }
 
         // 遅延時間を更新
         function updateDelayTime() {
             const slider = document.getElementById('delaySlider');
-            delaySeconds = parseInt(slider.value);
-            document.getElementById('delayValue').textContent = delaySeconds + '秒';
+            delayMs = parseInt(slider.value) * 1000; // 秒をミリ秒に変換
+            document.getElementById('delayValue').textContent = (delayMs/1000) + '秒';
+            
+            console.log('遅延時間更新:', delayMs + 'ms');
             
             // 接続中の場合は遅延設定を再適用
             if (isConnected && remoteStream) {
@@ -290,14 +515,36 @@
         document.addEventListener('DOMContentLoaded', function() {
             initializePeer();
             
+            // Canvas要素を準備
+            canvas = document.getElementById('delayCanvas');
+            ctx = canvas.getContext('2d');
+            
             // イベントリスナーを追加
             document.getElementById('connectBtn').addEventListener('click', connectToBroadcast);
             document.getElementById('disconnectBtn').addEventListener('click', disconnectFromBroadcast);
             document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
             document.getElementById('delaySlider').addEventListener('input', updateDelayTime);
+            document.getElementById('pasteIdBtn').addEventListener('click', pasteBroadcastId);
+            
+            // Enterキーでも接続
+            document.getElementById('broadcastIdInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    connectToBroadcast();
+                }
+            });
             
             // 初期遅延値を設定
             updateDelayTime();
+            
+            // 定期的に統計を更新
+            setInterval(updateReceiveStats, 1000);
+            
+            // ブラウザサポート状況を表示
+            const supportStatus = typeof MediaStreamTrackProcessor !== 'undefined' 
+                ? 'サポート済み (高性能)' 
+                : 'フォールバック モード';
+            console.log('MediaStreamTrackProcessor:', supportStatus);
+            document.getElementById('statusText').textContent = 'MediaStreamTrackProcessor: ' + supportStatus;
         });
 
         // ページ離脱時のクリーンアップ

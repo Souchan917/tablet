@@ -259,6 +259,171 @@ video {
     text-align: center;
 }
 
+/* 配信ID入力 */
+.broadcast-id-input {
+    margin: 20px 0;
+    text-align: center;
+}
+
+.broadcast-id-input label {
+    font-weight: bold;
+    color: #9AFF9A;
+}
+
+.broadcast-id-input input {
+    background-color: #333;
+    color: #fff;
+    border: 2px solid #9AFF9A;
+    border-radius: 4px;
+    padding: 8px;
+    font-size: 1em;
+}
+
+/* 統計情報 */
+.stream-stats, .receive-stats {
+    background-color: #222;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+    border: 1px solid #444;
+}
+
+.stream-stats h3, .receive-stats h3 {
+    color: #9AFF9A;
+    margin-bottom: 10px;
+}
+
+.stream-stats p, .receive-stats p {
+    margin: 5px 0;
+    font-family: monospace;
+}
+
+/* 接続情報の改良 */
+.connection-info {
+    background-color: #222;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+    border: 1px solid #444;
+}
+
+.connection-info h3 {
+    color: #9AFF9A;
+    margin-bottom: 10px;
+}
+
+/* カメラコントロールの改良 */
+.camera-controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 20px 0;
+    flex-wrap: wrap;
+}
+
+.camera-btn {
+    background-color: #9AFF9A;
+    color: #000;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 1em;
+    transition: all 0.3s ease;
+}
+
+.camera-btn:hover {
+    background-color: #7FFF7F;
+    transform: translateY(-1px);
+}
+
+.camera-btn:disabled {
+    background-color: #666;
+    color: #999;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* 遅延コントロール */
+.delay-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin: 20px 0;
+    justify-content: center;
+    background-color: #222;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #444;
+}
+
+.delay-controls label {
+    color: #9AFF9A;
+    font-weight: bold;
+}
+
+.delay-slider {
+    width: 200px;
+    height: 5px;
+    background: #555;
+    outline: none;
+    border-radius: 5px;
+}
+
+.delay-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: #9AFF9A;
+    cursor: pointer;
+    border-radius: 50%;
+}
+
+.delay-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: #9AFF9A;
+    cursor: pointer;
+    border-radius: 50%;
+    border: none;
+}
+
+/* ビデオコンテナの改良 */
+.video-container {
+    position: relative;
+    margin: 20px 0;
+    background-color: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.video-container video {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.video-container canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* ステータステキスト */
+#statusText {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: #9AFF9A;
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-size: 1.1em;
+    text-align: center;
+}
+
 /* レスポンシブデザイン */
 @media (max-width: 768px) {
     .entrance .button-grid {
@@ -281,5 +446,19 @@ video {
     
     .team-progress {
         grid-template-columns: 1fr;
+    }
+    
+    .delay-controls {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .delay-slider {
+        width: 150px;
+    }
+    
+    .broadcast-id-input input {
+        width: 250px;
+        margin: 10px 0;
     }
 } 
