@@ -1,0 +1,65 @@
+[debug] [2025-07-04T01:15:41.627Z] ----------------------------------------------------------------------
+[debug] [2025-07-04T01:15:41.631Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Hso03\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js init database
+[debug] [2025-07-04T01:15:41.631Z] CLI Version:   14.9.0
+[debug] [2025-07-04T01:15:41.632Z] Platform:      win32
+[debug] [2025-07-04T01:15:41.632Z] Node Version:  v22.13.0
+[debug] [2025-07-04T01:15:41.632Z] Time:          Fri Jul 04 2025 10:15:41 GMT+0900 (日本標準時)
+[debug] [2025-07-04T01:15:41.633Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-07-04T01:15:41.991Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-04T01:15:41.993Z] > authorizing via signed-in user (h.so030502@gmail.com)
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  C:\Users\Hso03\Documents\GitHub\tablet
+
+Before we get started, keep in mind:
+
+  * You are initializing within an existing Firebase project directory
+
+[info] 
+=== Project Setup
+[info] 
+[info] First, let's associate this project directory with a Firebase project.
+[info] You can create multiple project aliases by running firebase use --add, 
+[info] but for now we'll just set up a default project.
+[info] 
+[debug] [2025-07-04T01:15:47.662Z] Using project from CLI flag: gatango-3ea57
+[debug] [2025-07-04T01:15:47.664Z] Checked if tokens are valid: true, expires at: 1751595318549
+[debug] [2025-07-04T01:15:47.664Z] Checked if tokens are valid: true, expires at: 1751595318549
+[debug] [2025-07-04T01:15:47.666Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/gatango-3ea57 [none]
+[debug] [2025-07-04T01:15:48.049Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/gatango-3ea57 200
+[debug] [2025-07-04T01:15:48.050Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/gatango-3ea57 {"projectId":"gatango-3ea57","projectNumber":"431233584497","displayName":"gatango","name":"projects/gatango-3ea57","resources":{"hostingSite":"gatango-3ea57"},"state":"ACTIVE","etag":"1_3ef6b9d5-4bc0-46b0-98f3-ffca85075ea2"}
+[info] i  Using project gatango-3ea57 (gatango) 
+[info] 
+=== Database Setup
+[info] 
+[info] Firebase Realtime Database Security Rules allow you to define how your data should be
+[info] structured and when your data can be read from and written to.
+[info] 
+[info] i  database: ensuring required API firebasedatabase.googleapis.com is enabled... 
+[debug] [2025-07-04T01:16:29.433Z] Checked if tokens are valid: true, expires at: 1751595318549
+[debug] [2025-07-04T01:16:29.433Z] Checked if tokens are valid: true, expires at: 1751595318549
+[debug] [2025-07-04T01:16:29.434Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gatango-3ea57/services/firebasedatabase.googleapis.com [none]
+[debug] [2025-07-04T01:16:29.434Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gatango-3ea57/services/firebasedatabase.googleapis.com x-goog-quota-user=projects/gatango-3ea57
+[debug] [2025-07-04T01:16:29.766Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gatango-3ea57/services/firebasedatabase.googleapis.com 200
+[debug] [2025-07-04T01:16:29.767Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gatango-3ea57/services/firebasedatabase.googleapis.com [omitted]
+[warn] !  database: missing required API firebasedatabase.googleapis.com. Enabling now... 
+[debug] [2025-07-04T01:16:29.769Z] Checked if tokens are valid: true, expires at: 1751595318549
+[debug] [2025-07-04T01:16:29.769Z] Checked if tokens are valid: true, expires at: 1751595318549
+[debug] [2025-07-04T01:16:29.769Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1/projects/gatango-3ea57/services/firebasedatabase.googleapis.com:enable [none]
+[debug] [2025-07-04T01:16:29.769Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1/projects/gatango-3ea57/services/firebasedatabase.googleapis.com:enable x-goog-quota-user=projects/gatango-3ea57
+[debug] [2025-07-04T01:16:30.199Z] <<< [apiv2][status] POST https://serviceusage.googleapis.com/v1/projects/gatango-3ea57/services/firebasedatabase.googleapis.com:enable 200
+[debug] [2025-07-04T01:16:30.199Z] <<< [apiv2][body] POST https://serviceusage.googleapis.com/v1/projects/gatango-3ea57/services/firebasedatabase.googleapis.com:enable [omitted]
+[info] 
+[debug] [2025-07-04T01:16:40.219Z] Checked if tokens are valid: true, expires at: 1751595318549
+[debug] [2025-07-04T01:16:40.219Z] Checked if tokens are valid: true, expires at: 1751595318549
+[debug] [2025-07-04T01:16:40.220Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/gatango-3ea57 [none]
+[debug] [2025-07-04T01:16:40.582Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/gatango-3ea57 200
+[debug] [2025-07-04T01:16:40.583Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/gatango-3ea57 {"projectId":"gatango-3ea57","projectNumber":"431233584497","displayName":"gatango","name":"projects/gatango-3ea57","resources":{"hostingSite":"gatango-3ea57"},"state":"ACTIVE","etag":"1_3ef6b9d5-4bc0-46b0-98f3-ffca85075ea2"}
