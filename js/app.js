@@ -1283,6 +1283,34 @@ class TabletApp {
         
         this.setupCameraModeSelector();
         this.setupCameraTapHandler();
+        
+        // スマホカメラシステムの初期化
+        this.initSimpleCameraSystem();
+    }
+
+    // スマホカメラシステムの初期化
+    initSimpleCameraSystem() {
+        // デバイス判定（簡易版）
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+            console.log('モバイルデバイスを検出。スマホカメラシステムを初期化します');
+            
+            // 既存のカメラUIを非表示
+            const cameraModeSelector = document.querySelector('.camera-mode-selector');
+            if (cameraModeSelector) {
+                cameraModeSelector.style.display = 'none';
+            }
+            
+            // スマホカメラシステムを初期化
+            setTimeout(() => {
+                if (typeof initSimpleCameraSystem === 'function') {
+                    initSimpleCameraSystem();
+                }
+            }, 500);
+        } else {
+            console.log('デスクトップデバイスを検出。通常のカメラシステムを使用します');
+        }
     }
 
     // カメラモード選択の設定

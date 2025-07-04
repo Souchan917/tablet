@@ -1525,6 +1525,213 @@ body {
     }
 }
 
+/* スマホ簡易カメラUI */
+.simple-camera-ui {
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin: 1rem 0;
+}
+
+.simple-camera-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.simple-camera-header h3 {
+    margin: 0;
+    color: #333;
+    font-size: 1.2rem;
+}
+
+.connection-status {
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    background: #e9ecef;
+    color: #666;
+}
+
+.connection-status.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.connection-status.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.connection-status.warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.simple-camera-controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.simple-camera-btn {
+    padding: 0.8rem 1.2rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex: 1;
+    min-width: 120px;
+}
+
+.simple-camera-btn.primary {
+    background: linear-gradient(45deg, #007bff, #0056b3);
+    color: white;
+}
+
+.simple-camera-btn.primary:hover:not(:disabled) {
+    background: linear-gradient(45deg, #0056b3, #004085);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+}
+
+.simple-camera-btn.success {
+    background: linear-gradient(45deg, #28a745, #1e7e34);
+    color: white;
+}
+
+.simple-camera-btn.success:hover:not(:disabled) {
+    background: linear-gradient(45deg, #1e7e34, #155724);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}
+
+.simple-camera-btn.danger {
+    background: linear-gradient(45deg, #dc3545, #c82333);
+    color: white;
+}
+
+.simple-camera-btn.danger:hover:not(:disabled) {
+    background: linear-gradient(45deg, #c82333, #a71e2a);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
+.simple-camera-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.simple-camera-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.info-label {
+    font-size: 0.8rem;
+    color: #666;
+    font-weight: 600;
+}
+
+.info-value {
+    font-size: 1rem;
+    color: #333;
+    font-weight: bold;
+    padding: 0.2rem 0.5rem;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+
+.simple-camera-video {
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+#simple-local-video {
+    width: 100%;
+    max-width: 400px;
+    height: auto;
+    border-radius: 8px;
+    border: 2px solid #dee2e6;
+    background: #000;
+}
+
+.simple-camera-help {
+    background: #e3f2fd;
+    padding: 1rem;
+    border-radius: 6px;
+    border-left: 4px solid #2196f3;
+}
+
+.simple-camera-help h4 {
+    margin: 0 0 0.5rem 0;
+    color: #1976d2;
+    font-size: 1rem;
+}
+
+.simple-camera-help ol {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+}
+
+.simple-camera-help li {
+    margin-bottom: 0.3rem;
+    color: #333;
+}
+
+.simple-camera-help p {
+    margin: 0.5rem 0 0 0;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+/* スマホ向けレスポンシブ */
+@media (max-width: 480px) {
+    .simple-camera-header {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-start;
+    }
+    
+    .simple-camera-controls {
+        flex-direction: column;
+    }
+    
+    .simple-camera-btn {
+        min-width: auto;
+    }
+    
+    .simple-camera-info {
+        grid-template-columns: 1fr;
+    }
+    
+    #simple-local-video {
+        max-width: 100%;
+    }
+}
+
 /* タップエリア */
 .tap-area-vehicle {
     position: fixed;
