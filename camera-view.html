@@ -19,24 +19,23 @@
                 <p id="statusText">配信に接続中...</p>
             </div>
             
-                    <div class="delay-controls">
-            <label for="delaySlider">遅延時間:</label>
-            <input type="range" id="delaySlider" min="0" max="30" value="0" step="1" class="delay-slider">
-            <span id="delayValue">0秒 (超低遅延)</span>
-            <button class="camera-btn" id="ultraLowLatencyBtn">⚡ 超低遅延モード</button>
-        </div>
+            <div class="delay-controls">
+                <label for="delaySlider">遅延時間:</label>
+                <input type="range" id="delaySlider" min="0" max="30" value="5" step="1" class="delay-slider">
+                <span id="delayValue">5秒</span>
+            </div>
             
             <div class="broadcast-id-input">
-                <label for="broadcastIdInput">配信ID:</label>
-                <input type="text" id="broadcastIdInput" placeholder="配信IDを入力してください" style="width: 300px; padding: 8px; margin: 0 10px;">
-                <button class="camera-btn" id="pasteIdBtn">貼り付け</button>
+                <p style="color: #9AFF9A; font-size: 14px; margin: 10px 0;">
+                    🚀 簡単接続モード - 配信側の開始を待機中...
+                </p>
             </div>
             
             <div class="camera-controls">
-                <button class="camera-btn" id="testBtn">接続テスト</button>
-                <button class="camera-btn" id="connectBtn">接続開始</button>
-                <button class="camera-btn" id="disconnectBtn" disabled>接続終了</button>
-                <button class="camera-btn" id="fullscreenBtn">全画面表示</button>
+                <button class="camera-btn" id="connectBtn">📞 手動接続</button>
+                <button class="camera-btn" id="disconnectBtn" disabled>❌ 切断</button>
+                <button class="camera-btn" id="lowLatencyBtn">🚀 低遅延モード</button>
+                <button class="camera-btn" id="fullscreenBtn">🖥️ 全画面表示</button>
             </div>
             
             <div class="connection-info">
@@ -52,25 +51,6 @@
                 <p>受信ビットレート: <span id="receiveBitrateStats">--- kbps</span></p>
                 <p>受信フレームレート: <span id="receiveFpsStats">--- fps</span></p>
                 <p>パケットロス: <span id="packetLossStats">--- %</span></p>
-            </div>
-            
-            <div class="cost-info" style="background-color: #2a2a00; padding: 15px; border-left: 4px solid #FFD700; margin: 20px 0;">
-                <h3>💰 コスト情報</h3>
-                <p>✅ <strong>完全無料</strong>: WebRTC + PeerJS技術</p>
-                <p>⚠️ <strong>データ通信量</strong>: インターネット回線を使用</p>
-                <p>📊 <strong>1分あたり</strong>: 低画質=15MB, 標準=30MB, 高画質=60MB</p>
-                <p>🏠 <strong>同じWi-Fi</strong>: 家庭内通信なら遅延10ms以下可能</p>
-            </div>
-            
-            <div class="latency-optimization" style="background-color: #1a1a1a; padding: 15px; border-left: 4px solid #9AFF9A; margin: 20px 0;">
-                <h3>⚡ 超低遅延のコツ</h3>
-                <ul>
-                    <li><strong>遅延0秒設定</strong>: スライダーを0にセット</li>
-                    <li><strong>同じWi-Fiネットワーク</strong>: 10ms以下の遅延を実現</li>
-                    <li><strong>5GHz帯Wi-Fi</strong>: 2.4GHzより2倍高速</li>
-                    <li><strong>Chrome使用</strong>: 最高のWebRTC性能</li>
-                    <li><strong>有線LAN</strong>: 最も安定した低遅延</li>
-                </ul>
             </div>
             
             <div class="troubleshooting">
@@ -102,23 +82,28 @@
         let isConnected = false;
         let delayMs = 5000; // 5秒デフォルト
         let isProcessing = false;
-        let broadcastId = null;
+
+        // 受信側の固定ID（簡単接続用）
+        const peerId = 'tablet-viewer-fixed';
+        const broadcastId = 'tablet-broadcast-fixed'; // 配信側の固定ID
 
         // PeerJS接続を初期化
         function initializePeer() {
-            // 受信側のランダムなpeerIDを生成
-            const peerId = 'tablet-viewer-' + Date.now().toString(36);
-            
             console.log('🔄 PeerJS初期化開始 (受信側):', peerId);
             
-            // PeerJS設定を簡素化
+            // 低遅延最適化されたPeerJS設定
             peer = new Peer(peerId, {
                 debug: 1,
                 config: {
                     iceServers: [
                         { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' }
-                    ]
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' }
+                    ],
+                    iceTransportPolicy: 'all',
+                    bundlePolicy: 'max-compat',
+                    rtcpMuxPolicy: 'require',
+                    iceCandidatePoolSize: 10
                 }
             });
 
@@ -128,7 +113,12 @@
                 document.getElementById('connectionStatus').textContent = '接続可能';
                 
                 // 接続成功をユーザーに通知
-                document.getElementById('statusText').textContent = '受信準備完了 - 配信IDを入力して接続してください';
+                document.getElementById('statusText').textContent = '受信準備完了 - 自動接続対応';
+                
+                // 自動接続を試行
+                setTimeout(() => {
+                    tryAutoConnect();
+                }, 2000); // 2秒後に自動接続を試行
             });
 
             peer.on('call', function(incomingCall) {
@@ -187,41 +177,130 @@
             });
         }
 
-        // 配信IDを貼り付け
-        function pasteBroadcastId() {
-            navigator.clipboard.readText().then(text => {
-                document.getElementById('broadcastIdInput').value = text;
-            }).catch(err => {
-                console.warn('クリップボード読み取りエラー:', err);
-            });
-        }
-
-        // 配信の存在を確認
-        function checkBroadcastExists(broadcastId) {
-            return new Promise((resolve, reject) => {
-                // データ接続を試行して配信の存在を確認
-                const testConnection = peer.connect(broadcastId);
+        // 自動接続を試行
+        async function tryAutoConnect() {
+            if (!peer || !peer.open) {
+                console.log('⚠️ PeerJS接続が準備できていません');
+                return;
+            }
+            
+            try {
+                console.log('🔄 自動接続を試行中...', broadcastId);
+                document.getElementById('statusText').textContent = '配信を検索中...';
                 
-                testConnection.on('open', function() {
-                    console.log('✅ 配信ID確認済み:', broadcastId);
-                    testConnection.close();
-                    resolve(true);
+                // 配信の存在を確認
+                await checkBroadcastExists(broadcastId);
+                
+                console.log('📞 配信に自動接続中...', broadcastId);
+                document.getElementById('statusText').textContent = '配信に自動接続中...';
+                
+                // 実際の通話を開始
+                call = peer.call(broadcastId);
+                
+                if (!call) {
+                    throw new Error('通話の初期化に失敗しました');
+                }
+                
+                console.log('📞 通話要求を送信:', broadcastId);
+                
+                call.on('stream', function(stream) {
+                    console.log('✅ 配信ストリームを受信');
+                    remoteStream = stream;
+                    
+                    // 受信側の低遅延設定
+                    try {
+                        const pc = call.peerConnection;
+                        
+                        // 受信者の低遅延設定
+                        const receivers = pc.getReceivers();
+                        receivers.forEach(receiver => {
+                            if (receiver.track && receiver.track.kind === 'video') {
+                                console.log('🎯 ビデオ受信者の低遅延設定');
+                                
+                                // トランシーバーの設定
+                                const transceiver = pc.getTransceivers().find(t => t.receiver === receiver);
+                                if (transceiver) {
+                                    transceiver.direction = 'recvonly';
+                                    console.log('✅ 受信専用モード設定');
+                                }
+                            }
+                        });
+                        
+                        // 統計情報の監視
+                        const statsInterval = setInterval(() => {
+                            if (!isConnected) {
+                                clearInterval(statsInterval);
+                                return;
+                            }
+                            
+                            pc.getStats().then(stats => {
+                                stats.forEach(report => {
+                                    if (report.type === 'inbound-rtp' && report.mediaType === 'video') {
+                                        console.log('📊 受信統計:', {
+                                            bitrate: Math.round(report.bytesReceived * 8 / 1000),
+                                            fps: report.framesPerSecond,
+                                            packetsLost: report.packetsLost,
+                                            jitter: report.jitter
+                                        });
+                                    }
+                                });
+                            }).catch(e => console.warn('⚠️ 統計取得失敗:', e));
+                        }, 5000); // 5秒ごとに統計表示
+                        
+                    } catch (error) {
+                        console.warn('⚠️ 受信側低遅延設定の一部が失敗:', error);
+                    }
+                    
+                    handleRemoteStream(stream);
+                    
+                    document.getElementById('statusText').textContent = '配信を受信中...';
+                    document.getElementById('connectionStatus').textContent = '接続済み';
+                    document.getElementById('connectBtn').disabled = true;
+                    document.getElementById('disconnectBtn').disabled = false;
+                    
+                    isConnected = true;
+                    console.log('🎬 低遅延映像配信開始');
                 });
                 
-                testConnection.on('error', function(error) {
-                    console.warn('❌ 配信ID確認失敗:', error);
-                    reject(error);
+                call.on('close', function() {
+                    console.log('📴 配信終了');
+                    disconnectFromBroadcast();
                 });
                 
-                // 5秒でタイムアウト
+                call.on('error', function(error) {
+                    console.error('❌ 通話エラー:', error);
+                    document.getElementById('statusText').textContent = '通話エラー: ' + error.message;
+                });
+                
+                // 接続状態を監視
                 setTimeout(() => {
-                    testConnection.close();
-                    reject(new Error('配信ID確認タイムアウト'));
+                    if (!isConnected) {
+                        console.warn('⚠️ 接続タイムアウト');
+                        document.getElementById('statusText').textContent = '配信が見つかりません - 配信側の開始を待機中...';
+                        
+                        // 自動再接続を試行
+                        setTimeout(() => {
+                            if (!isConnected) {
+                                tryAutoConnect();
+                            }
+                        }, 5000);
+                    }
+                }, 10000); // 10秒でタイムアウト
+                
+            } catch (error) {
+                console.error('❌ 自動接続に失敗:', error);
+                document.getElementById('statusText').textContent = '配信が見つかりません - 配信側の開始を待機中...';
+                
+                // 自動再接続を試行
+                setTimeout(() => {
+                    if (!isConnected) {
+                        tryAutoConnect();
+                    }
                 }, 5000);
-            });
+            }
         }
 
-        // 配信に接続
+        // 手動接続（バックアップ用）
         async function connectToBroadcast() {
             if (!peer) {
                 console.error('❌ PeerJS が初期化されていません');
@@ -235,21 +314,9 @@
                 return;
             }
 
-            // 入力フィールドから配信IDを取得
-            const inputField = document.getElementById('broadcastIdInput');
-            const inputId = inputField.value.trim();
-            
-            if (!inputId) {
-                alert('配信IDを入力してください');
-                inputField.focus();
-                return;
-            }
-            
-            broadcastId = inputId;
-
             try {
-                console.log('🔄 配信IDを確認中...', broadcastId);
-                document.getElementById('statusText').textContent = '配信IDを確認中...';
+                console.log('📞 手動接続を試行...', broadcastId);
+                document.getElementById('statusText').textContent = '手動接続中...';
                 
                 // 配信の存在を確認
                 await checkBroadcastExists(broadcastId);
@@ -269,6 +336,51 @@
                 call.on('stream', function(stream) {
                     console.log('✅ 配信ストリームを受信');
                     remoteStream = stream;
+                    
+                    // 受信側の低遅延設定
+                    try {
+                        const pc = call.peerConnection;
+                        
+                        // 受信者の低遅延設定
+                        const receivers = pc.getReceivers();
+                        receivers.forEach(receiver => {
+                            if (receiver.track && receiver.track.kind === 'video') {
+                                console.log('🎯 ビデオ受信者の低遅延設定');
+                                
+                                // トランシーバーの設定
+                                const transceiver = pc.getTransceivers().find(t => t.receiver === receiver);
+                                if (transceiver) {
+                                    transceiver.direction = 'recvonly';
+                                    console.log('✅ 受信専用モード設定');
+                                }
+                            }
+                        });
+                        
+                        // 統計情報の監視
+                        const statsInterval = setInterval(() => {
+                            if (!isConnected) {
+                                clearInterval(statsInterval);
+                                return;
+                            }
+                            
+                            pc.getStats().then(stats => {
+                                stats.forEach(report => {
+                                    if (report.type === 'inbound-rtp' && report.mediaType === 'video') {
+                                        console.log('📊 受信統計:', {
+                                            bitrate: Math.round(report.bytesReceived * 8 / 1000),
+                                            fps: report.framesPerSecond,
+                                            packetsLost: report.packetsLost,
+                                            jitter: report.jitter
+                                        });
+                                    }
+                                });
+                            }).catch(e => console.warn('⚠️ 統計取得失敗:', e));
+                        }, 5000); // 5秒ごとに統計表示
+                        
+                    } catch (error) {
+                        console.warn('⚠️ 受信側低遅延設定の一部が失敗:', error);
+                    }
+                    
                     handleRemoteStream(stream);
                     
                     document.getElementById('statusText').textContent = '配信を受信中...';
@@ -277,7 +389,7 @@
                     document.getElementById('disconnectBtn').disabled = false;
                     
                     isConnected = true;
-                    console.log('🎬 映像配信開始');
+                    console.log('🎬 低遅延映像配信開始');
                 });
                 
                 call.on('close', function() {
@@ -314,6 +426,31 @@
             }
         }
 
+        // 配信の存在を確認
+        function checkBroadcastExists(broadcastId) {
+            return new Promise((resolve, reject) => {
+                // データ接続を試行して配信の存在を確認
+                const testConnection = peer.connect(broadcastId);
+                
+                testConnection.on('open', function() {
+                    console.log('✅ 配信ID確認済み:', broadcastId);
+                    testConnection.close();
+                    resolve(true);
+                });
+                
+                testConnection.on('error', function(error) {
+                    console.warn('❌ 配信ID確認失敗:', error);
+                    reject(error);
+                });
+                
+                // 5秒でタイムアウト
+                setTimeout(() => {
+                    testConnection.close();
+                    reject(new Error('配信ID確認タイムアウト'));
+                }, 5000);
+            });
+        }
+
         // 配信から切断
         function disconnectFromBroadcast() {
             if (call) {
@@ -336,34 +473,59 @@
             remoteStream = null;
         }
 
-        // リモートストリームを処理
+        // 低遅延最適化されたストリーム処理
         function handleRemoteStream(stream) {
-            console.log('ストリーム処理開始, 遅延:', delayMs + 'ms');
+            console.log('🎬 ストリーム処理開始, 遅延:', delayMs + 'ms');
             
             if (delayMs > 0) {
                 startDelayBuffer(stream);
             } else {
-                // ⚡ 超低遅延モード - 直接表示
-                console.log('⚡ 超低遅延モード有効');
-                displayDirectStream(stream);
+                // 🚀 ゼロ遅延モード - 最高性能の直接表示
+                console.log('🚀 ゼロ遅延モード開始');
+                const video = document.getElementById('remoteVideo');
+                
+                // 低遅延のための最適化設定
+                video.srcObject = stream;
+                video.muted = true; // エコー防止
+                video.autoplay = true;
+                video.playsInline = true;
+                video.setAttribute('playsinline', 'true');
+                
+                // GPU加速とパフォーマンス最適化
+                if (video.style) {
+                    video.style.transform = 'translateZ(0)';
+                    video.style.willChange = 'transform';
+                    video.style.backfaceVisibility = 'hidden';
+                }
+                
+                // 低遅延再生設定
+                video.play().then(() => {
+                    console.log('✅ ゼロ遅延再生開始');
+                    document.getElementById('delayStatus').textContent = '無効（ゼロ遅延）';
+                }).catch(error => {
+                    console.error('❌ ゼロ遅延再生失敗:', error);
+                    document.getElementById('delayStatus').textContent = '無効（エラー）';
+                });
             }
         }
 
-        // MediaStreamTrackProcessor を使用した高性能遅延バッファ
+        // 高性能最適化された遅延バッファ
         function startDelayBuffer(stream) {
             try {
+                console.log('🎞️ 高性能遅延バッファ開始:', delayMs + 'ms');
+                
                 // 前の処理を停止
                 stopDelayBuffer();
                 
                 const videoTrack = stream.getVideoTracks()[0];
                 if (!videoTrack) {
-                    console.error('ビデオトラックが見つかりません');
+                    console.error('❌ ビデオトラックが見つかりません');
                     return;
                 }
 
                 // MediaStreamTrackProcessor をサポートしているかチェック
                 if (typeof MediaStreamTrackProcessor === 'undefined') {
-                    console.warn('MediaStreamTrackProcessor が利用できません。従来の方法を使用します。');
+                    console.warn('⚠️ MediaStreamTrackProcessor が利用できません。フォールバックを使用します。');
                     fallbackDelayBuffer(stream);
                     return;
                 }
@@ -374,11 +536,18 @@
                 canvas = document.getElementById('delayCanvas');
                 ctx = canvas.getContext('2d');
                 
+                // GPU加速のための2D context設定
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                
                 // フレームキューをクリア
                 frameQueue = [];
                 isProcessing = true;
                 
-                // フレーム読み取りループ
+                let frameCount = 0;
+                let lastStatsTime = performance.now();
+                
+                // フレーム読み取りループ（最適化版）
                 async function readFrames() {
                     try {
                         while (isProcessing) {
@@ -388,66 +557,109 @@
                             const frame = result.value;
                             const timestamp = performance.now();
                             
+                            frameCount++;
+                            
                             // フレームをキューに追加
                             frameQueue.push({
                                 frame: frame,
                                 timestamp: timestamp
                             });
                             
-                            // キューのサイズを制限（メモリ使用量を抑制）
-                            if (frameQueue.length > 300) { // 10秒分程度
+                            // 動的キューサイズ制限（フレームレートに応じて調整）
+                            const maxFrames = Math.min(300, (delayMs / 16.67) * 1.5); // 1.5倍のバッファ
+                            if (frameQueue.length > maxFrames) {
                                 const oldFrame = frameQueue.shift();
                                 oldFrame.frame.close();
                             }
+                            
+                            // 統計情報の更新（1秒ごと）
+                            if (timestamp - lastStatsTime >= 1000) {
+                                const fps = Math.round((frameCount * 1000) / (timestamp - lastStatsTime));
+                                console.log('📊 フレーム処理統計:', {
+                                    fps: fps,
+                                    queueSize: frameQueue.length,
+                                    maxFrames: maxFrames
+                                });
+                                frameCount = 0;
+                                lastStatsTime = timestamp;
+                            }
                         }
                     } catch (error) {
-                        console.error('フレーム読み取りエラー:', error);
+                        console.error('❌ フレーム読み取りエラー:', error);
                     }
                 }
                 
-                // 遅延描画ループ
+                // 高速遅延描画ループ
                 function renderDelayedFrames() {
                     if (!isProcessing) return;
                     
                     const now = performance.now();
                     const targetTime = now - delayMs;
                     
-                    // 遅延時間に達したフレームを検索
-                    const frameIndex = frameQueue.findIndex(item => item.timestamp <= targetTime);
+                    // 最適化されたフレーム検索（線形検索を改善）
+                    let frameIndex = -1;
+                    for (let i = frameQueue.length - 1; i >= 0; i--) {
+                        if (frameQueue[i].timestamp <= targetTime) {
+                            frameIndex = i;
+                            break;
+                        }
+                    }
                     
                     if (frameIndex !== -1) {
                         const frameItem = frameQueue[frameIndex];
                         const frame = frameItem.frame;
                         
                         try {
-                            // キャンバスにフレームを描画
-                            canvas.width = frame.displayWidth || 640;
-                            canvas.height = frame.displayHeight || 360;
+                            // 高品質フレーム描画
+                            const frameWidth = frame.displayWidth || frame.codedWidth || 640;
+                            const frameHeight = frame.displayHeight || frame.codedHeight || 360;
+                            
+                            // キャンバスサイズの動的調整
+                            if (canvas.width !== frameWidth || canvas.height !== frameHeight) {
+                                canvas.width = frameWidth;
+                                canvas.height = frameHeight;
+                                console.log('🎨 キャンバスサイズ調整:', frameWidth + 'x' + frameHeight);
+                            }
+                            
+                            // GPU加速描画
+                            ctx.clearRect(0, 0, canvas.width, canvas.height);
                             ctx.drawImage(frame, 0, 0);
                             
-                            // キャンバスをビデオ要素に表示
+                            // 最適化されたビデオ表示
                             const video = document.getElementById('remoteVideo');
                             
-                            // MediaSourceを使ってキャンバスをビデオとして表示
-                            canvas.toBlob(function(blob) {
-                                if (blob) {
-                                    const url = URL.createObjectURL(blob);
-                                    
-                                    // 前のURLをクリーンアップ
-                                    if (video.src && video.src.startsWith('blob:')) {
-                                        URL.revokeObjectURL(video.src);
-                                    }
-                                    
-                                    video.src = url;
-                                    video.currentTime = 0;
+                            // MediaStream経由でのキャンバス表示（より効率的）
+                            if (canvas.captureStream) {
+                                const canvasStream = canvas.captureStream(60); // 60fps
+                                if (video.srcObject !== canvasStream) {
+                                    video.srcObject = canvasStream;
+                                    video.muted = true;
+                                    video.autoplay = true;
+                                    video.playsInline = true;
+                                    video.play().catch(e => console.warn('⚠️ 再生開始失敗:', e));
                                 }
-                            }, 'image/jpeg', 0.9);
+                            } else {
+                                // フォールバック: Blob使用
+                                canvas.toBlob(function(blob) {
+                                    if (blob && isProcessing) {
+                                        const url = URL.createObjectURL(blob);
+                                        
+                                        // 前のURLをクリーンアップ
+                                        if (video.src && video.src.startsWith('blob:')) {
+                                            URL.revokeObjectURL(video.src);
+                                        }
+                                        
+                                        video.src = url;
+                                        video.currentTime = 0;
+                                    }
+                                }, 'image/jpeg', 0.95);
+                            }
                             
                         } catch (error) {
-                            console.error('フレーム描画エラー:', error);
+                            console.error('❌ フレーム描画エラー:', error);
                         }
                         
-                        // 使用済みフレームをクリーンアップ
+                        // 効率的なフレームクリーンアップ
                         for (let i = 0; i <= frameIndex; i++) {
                             frameQueue[i].frame.close();
                         }
@@ -461,10 +673,11 @@
                 readFrames();
                 renderDelayedFrames();
                 
-                document.getElementById('delayStatus').textContent = `有効 (${delayMs/1000}秒)`;
+                document.getElementById('delayStatus').textContent = `有効 (${delayMs/1000}秒, 高性能)`;
+                console.log('✅ 高性能遅延バッファ開始完了');
                 
             } catch (error) {
-                console.error('遅延バッファの開始に失敗:', error);
+                console.error('❌ 高性能遅延バッファの開始に失敗:', error);
                 fallbackDelayBuffer(stream);
             }
         }
@@ -597,13 +810,7 @@
         function updateDelayTime() {
             const slider = document.getElementById('delaySlider');
             delayMs = parseInt(slider.value) * 1000; // 秒をミリ秒に変換
-            
-            // 遅延時間に応じて表示を変更
-            if (delayMs === 0) {
-                document.getElementById('delayValue').textContent = '0秒 (⚡超低遅延)';
-            } else {
-                document.getElementById('delayValue').textContent = (delayMs/1000) + '秒';
-            }
+            document.getElementById('delayValue').textContent = (delayMs/1000) + '秒';
             
             console.log('遅延時間更新:', delayMs + 'ms');
             
@@ -611,62 +818,6 @@
             if (isConnected && remoteStream) {
                 handleRemoteStream(remoteStream);
             }
-        }
-
-        // 超低遅延モードを有効化
-        function enableUltraLowLatency() {
-            console.log('⚡ 超低遅延モード有効化');
-            
-            // 遅延を0に設定
-            document.getElementById('delaySlider').value = 0;
-            delayMs = 0;
-            document.getElementById('delayValue').textContent = '0秒 (⚡超低遅延)';
-            
-            // 接続中の場合は即座に適用
-            if (isConnected && remoteStream) {
-                // 既存の遅延バッファを停止
-                stopDelayBuffer();
-                
-                // 直接ストリームを表示
-                const video = document.getElementById('remoteVideo');
-                video.srcObject = remoteStream;
-                
-                // 超低遅延設定を適用
-                video.muted = true;
-                video.autoplay = true;
-                video.playsinline = true;
-                
-                // バッファリングを最小化
-                video.addEventListener('loadedmetadata', () => {
-                    video.play().catch(e => console.log('自動再生エラー:', e));
-                });
-                
-                document.getElementById('delayStatus').textContent = '無効 (⚡超低遅延モード)';
-                document.getElementById('statusText').textContent = '⚡ 超低遅延モード - リアルタイム配信中';
-                
-                console.log('✅ 超低遅延モード適用完了');
-            }
-        }
-
-        // 直接ストリーム表示（遅延なし）
-        function displayDirectStream(stream) {
-            console.log('🚀 直接ストリーム表示 - 遅延なし');
-            
-            const video = document.getElementById('remoteVideo');
-            video.srcObject = stream;
-            
-            // 超低遅延設定
-            video.muted = true;
-            video.autoplay = true;
-            video.playsinline = true;
-            
-            // バッファリング最小化
-            video.addEventListener('loadedmetadata', () => {
-                video.play().catch(e => console.log('自動再生エラー:', e));
-            });
-            
-            document.getElementById('delayStatus').textContent = '無効 (⚡超低遅延)';
-            document.getElementById('statusText').textContent = '⚡ 超低遅延配信中 - リアルタイム';
         }
 
         // 全画面表示
@@ -714,6 +865,149 @@
             }
         }
 
+        // 低遅延テスト
+        async function testLowLatency() {
+            const inputField = document.getElementById('broadcastIdInput');
+            const inputId = inputField.value.trim();
+            
+            if (!inputId) {
+                alert('配信IDを入力してください');
+                inputField.focus();
+                return;
+            }
+            
+            if (!peer || !peer.open) {
+                document.getElementById('statusText').textContent = 'PeerJS接続を確認中...';
+                console.log('❌ PeerJS接続が準備できていません');
+                return;
+            }
+            
+            try {
+                console.log('🚀 低遅延テスト開始:', inputId);
+                document.getElementById('statusText').textContent = '低遅延テスト中...';
+                
+                // 遅延を0秒に設定
+                const delaySlider = document.getElementById('delaySlider');
+                delaySlider.value = 0;
+                updateDelayTime();
+                
+                // 配信確認
+                await checkBroadcastExists(inputId);
+                
+                // 一時的に切断
+                if (isConnected) {
+                    disconnectFromBroadcast();
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+                
+                console.log('🚀 低遅延モードで接続中...', inputId);
+                document.getElementById('statusText').textContent = '低遅延モードで接続中...';
+                
+                broadcastId = inputId;
+                
+                // 低遅延接続を開始
+                call = peer.call(broadcastId);
+                
+                if (!call) {
+                    throw new Error('低遅延接続の初期化に失敗しました');
+                }
+                
+                console.log('🚀 低遅延通話要求を送信:', broadcastId);
+                
+                call.on('stream', function(stream) {
+                    console.log('🚀 低遅延配信ストリームを受信');
+                    remoteStream = stream;
+                    
+                    // 受信側の最大性能設定
+                    try {
+                        const pc = call.peerConnection;
+                        
+                        // 受信者の最大性能設定
+                        const receivers = pc.getReceivers();
+                        receivers.forEach(receiver => {
+                            if (receiver.track && receiver.track.kind === 'video') {
+                                console.log('🚀 低遅延ビデオ受信者設定');
+                                
+                                // 最大性能の設定
+                                const transceiver = pc.getTransceivers().find(t => t.receiver === receiver);
+                                if (transceiver) {
+                                    transceiver.direction = 'recvonly';
+                                    console.log('🚀 低遅延受信専用モード設定');
+                                }
+                            }
+                        });
+                        
+                        // 低遅延統計監視
+                        const statsInterval = setInterval(() => {
+                            if (!isConnected) {
+                                clearInterval(statsInterval);
+                                return;
+                            }
+                            
+                            pc.getStats().then(stats => {
+                                stats.forEach(report => {
+                                    if (report.type === 'inbound-rtp' && report.mediaType === 'video') {
+                                        console.log('🚀 低遅延統計:', {
+                                            bitrate: Math.round(report.bytesReceived * 8 / 1000),
+                                            fps: report.framesPerSecond,
+                                            packetsLost: report.packetsLost,
+                                            jitter: report.jitter
+                                        });
+                                    }
+                                });
+                            }).catch(e => console.warn('⚠️ 統計取得失敗:', e));
+                        }, 2000); // 2秒ごとに統計表示
+                        
+                    } catch (error) {
+                        console.warn('⚠️ 低遅延設定の一部が失敗:', error);
+                    }
+                    
+                    // 強制的にゼロ遅延モードで処理
+                    handleRemoteStream(stream);
+                    
+                    document.getElementById('statusText').textContent = '🚀 低遅延配信を受信中...';
+                    document.getElementById('connectionStatus').textContent = '接続済み (低遅延)';
+                    document.getElementById('connectBtn').disabled = true;
+                    document.getElementById('disconnectBtn').disabled = false;
+                    
+                    isConnected = true;
+                    console.log('🚀 低遅延映像配信開始');
+                });
+                
+                call.on('close', function() {
+                    console.log('📴 低遅延配信終了');
+                    disconnectFromBroadcast();
+                });
+                
+                call.on('error', function(error) {
+                    console.error('❌ 低遅延通話エラー:', error);
+                    document.getElementById('statusText').textContent = '低遅延通話エラー: ' + error.message;
+                });
+                
+                // 接続状態を監視
+                setTimeout(() => {
+                    if (!isConnected) {
+                        console.warn('⚠️ 低遅延接続タイムアウト');
+                        document.getElementById('statusText').textContent = '低遅延接続タイムアウト - 配信側の状態を確認してください';
+                    }
+                }, 10000); // 10秒でタイムアウト
+                
+            } catch (error) {
+                console.error('❌ 低遅延テストに失敗:', error);
+                let errorMessage = '低遅延テストに失敗: ';
+                
+                if (error.message.includes('タイムアウト')) {
+                    errorMessage += '配信IDが見つかりません';
+                } else if (error.message.includes('確認失敗')) {
+                    errorMessage += '配信が開始されていません';
+                } else {
+                    errorMessage += error.message;
+                }
+                
+                document.getElementById('statusText').textContent = errorMessage;
+            }
+        }
+
         // 戻るボタン
         function goBack() {
             disconnectFromBroadcast();
@@ -732,20 +1026,11 @@
             ctx = canvas.getContext('2d');
             
             // イベントリスナーを追加
-            document.getElementById('testBtn').addEventListener('click', testConnection);
             document.getElementById('connectBtn').addEventListener('click', connectToBroadcast);
             document.getElementById('disconnectBtn').addEventListener('click', disconnectFromBroadcast);
+            document.getElementById('lowLatencyBtn').addEventListener('click', testLowLatency);
             document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
             document.getElementById('delaySlider').addEventListener('input', updateDelayTime);
-            document.getElementById('pasteIdBtn').addEventListener('click', pasteBroadcastId);
-            document.getElementById('ultraLowLatencyBtn').addEventListener('click', enableUltraLowLatency);
-            
-            // Enterキーでも接続
-            document.getElementById('broadcastIdInput').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    connectToBroadcast();
-                }
-            });
             
             // 初期遅延値を設定
             updateDelayTime();

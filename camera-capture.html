@@ -34,9 +34,9 @@
             <div class="connection-info">
                 <h3>接続情報</h3>
                 <p>配信ID: <span id="peerId">準備中...</span></p>
-                <button class="camera-btn" id="copyIdBtn" disabled>IDをコピー</button>
+                <button class="camera-btn" id="copyIdBtn" disabled>📋 IDをコピー</button>
                 <p>接続状態: <span id="connectionStatus">準備中</span></p>
-                <p>画質: <span id="qualityStatus">自動調整中</span></p>
+                <p style="font-size: 12px; color: #9AFF9A;">🚀 簡単接続モード - 受信側は自動接続されます</p>
             </div>
             
             <div class="stream-stats">
@@ -44,25 +44,6 @@
                 <p>ビットレート: <span id="bitrateStats">--- kbps</span></p>
                 <p>フレームレート: <span id="fpsStats">--- fps</span></p>
                 <p>解像度: <span id="resolutionStats">---x---</span></p>
-            </div>
-            
-            <div class="cost-info" style="background-color: #2a2a00; padding: 15px; border-left: 4px solid #FFD700; margin: 20px 0;">
-                <h3>💰 コスト情報</h3>
-                <p>✅ <strong>完全無料</strong>: WebRTC技術により費用はかかりません</p>
-                <p>⚠️ <strong>データ通信量</strong>: 配信はインターネット回線を使用</p>
-                <p>📊 <strong>1分あたり</strong>: 720p=30MB, 1080p=60MB程度</p>
-                <p>🏠 <strong>家庭内通信</strong>: 同じWi-Fiなら超低遅延（10ms以下）</p>
-            </div>
-            
-            <div class="latency-tips" style="background-color: #1a1a1a; padding: 15px; border-left: 4px solid #9AFF9A; margin: 20px 0;">
-                <h3>⚡ 超低遅延配信のコツ</h3>
-                <ul>
-                    <li><strong>高品質Wi-Fi</strong>: 5GHz帯を使用で遅延激減</li>
-                    <li><strong>有線LAN</strong>: 最も安定した低遅延を実現</li>
-                    <li><strong>同じネットワーク</strong>: 家庭内なら10ms以下可能</li>
-                    <li><strong>720p設定</strong>: 1080pより遅延が少なく安定</li>
-                    <li><strong>Chrome使用</strong>: 最高のWebRTC性能</li>
-                </ul>
             </div>
             
             <div class="troubleshooting">
@@ -133,17 +114,27 @@
                     return;
                 }
 
+                // 低遅延最適化されたカメラ設定
                 const constraints = {
                     video: {
                         deviceId: { exact: deviceId },
-                        width: { ideal: 1920, max: 1920 },
-                        height: { ideal: 1080, max: 1080 },
-                        frameRate: { ideal: 30, max: 30 }
+                        width: { ideal: 1280, max: 1920 },
+                        height: { ideal: 720, max: 1080 },
+                        frameRate: { ideal: 60, max: 60 }, // 60fps対応
+                        facingMode: 'user',
+                        // 低遅延に重要な設定
+                        latency: { ideal: 0.01 }, // 10ms目標
+                        aspectRatio: { ideal: 16/9 }
                     },
                     audio: {
                         echoCancellation: true,
                         noiseSuppression: true,
-                        autoGainControl: true
+                        autoGainControl: true,
+                        // 低遅延オーディオ設定
+                        latency: { ideal: 0.01 },
+                        channelCount: { ideal: 2, max: 2 },
+                        sampleRate: { ideal: 48000 },
+                        sampleSize: { ideal: 16 }
                     }
                 };
 
@@ -197,24 +188,71 @@
             }
         }
 
-        // 接続に配信を送信
-        function sendStreamToConnection(call) {
+        // 低遅延最適化された配信設定
+        async function sendStreamToConnection(call) {
             if (!localStream) return;
             
-            // 配信品質の調整
-            const senders = call.peerConnection.getSenders();
-            senders.forEach(sender => {
-                if (sender.track && sender.track.kind === 'video') {
-                    const params = sender.getParameters();
-                    if (params.encodings) {
-                        params.encodings.forEach(encoding => {
-                            encoding.maxBitrate = 2000000; // 2Mbps
-                            encoding.maxFramerate = 30;
-                        });
-                        sender.setParameters(params);
+            try {
+                // RTCPeerConnection の低遅延設定
+                const pc = call.peerConnection;
+                
+                // 統計情報の有効化
+                pc.getStats().then(stats => {
+                    stats.forEach(report => {
+                        if (report.type === 'outbound-rtp' && report.mediaType === 'video') {
+                            console.log('📊 送信統計:', {
+                                bitrate: Math.round(report.bytesSent * 8 / 1000),
+                                fps: report.framesPerSecond,
+                                width: report.frameWidth,
+                                height: report.frameHeight
+                            });
+                        }
+                    });
+                });
+                
+                // 送信者設定の最適化
+                const senders = pc.getSenders();
+                for (const sender of senders) {
+                    if (sender.track && sender.track.kind === 'video') {
+                        const params = sender.getParameters();
+                        
+                        if (params.encodings && params.encodings.length > 0) {
+                            params.encodings.forEach(encoding => {
+                                // 低遅延に最適化
+                                encoding.maxBitrate = 3000000; // 3Mbps
+                                encoding.maxFramerate = 60; // 60fps対応
+                                encoding.scaleResolutionDownBy = 1; // 解像度維持
+                                encoding.priority = 'high'; // 高優先度
+                            });
+                            
+                            await sender.setParameters(params);
+                            console.log('✅ 低遅延エンコーディング設定完了');
+                        }
+                        
+                        // 追加の低遅延設定
+                        const transceiver = pc.getTransceivers().find(t => t.sender === sender);
+                        if (transceiver) {
+                            transceiver.direction = 'sendonly';
+                            console.log('✅ 送信専用モード設定');
+                        }
+                    }
+                    
+                    // オーディオの低遅延設定
+                    if (sender.track && sender.track.kind === 'audio') {
+                        const params = sender.getParameters();
+                        if (params.encodings && params.encodings.length > 0) {
+                            params.encodings.forEach(encoding => {
+                                encoding.priority = 'high';
+                                encoding.maxBitrate = 128000; // 128kbps
+                            });
+                            await sender.setParameters(params);
+                        }
                     }
                 }
-            });
+                
+            } catch (error) {
+                console.warn('⚠️ 低遅延設定の一部が失敗:', error);
+            }
         }
 
         // カメラストリームを停止
@@ -243,113 +281,91 @@
             updateConnectionStatus();
         }
 
+        // 配信側の固定ID（簡単接続用）
+        const peerId = 'tablet-broadcast-fixed';
+
         // PeerJS接続を初期化
         function initializePeer() {
-            // 固定のpeerIDを生成（配信側）
-            const peerId = 'tablet-broadcast-' + Date.now().toString(36);
-            
             console.log('🔄 PeerJS初期化開始:', peerId);
             
-            // PeerJS設定を簡素化
+            // 低遅延最適化されたPeerJS設定
             peer = new Peer(peerId, {
                 debug: 1,
                 config: {
                     iceServers: [
                         { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' }
-                    ]
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' }
+                    ],
+                    iceTransportPolicy: 'all',
+                    bundlePolicy: 'max-compat',
+                    rtcpMuxPolicy: 'require',
+                    iceCandidatePoolSize: 10
                 }
             });
 
             peer.on('open', function(id) {
                 console.log('✅ PeerJS接続成功:', id);
                 document.getElementById('peerId').textContent = id;
-                document.getElementById('connectionStatus').textContent = '接続可能';
-                document.getElementById('copyIdBtn').disabled = false;
                 
                 // 接続成功をユーザーに通知
-                document.getElementById('statusText').textContent = '配信準備完了 - 配信IDをコピーして共有してください';
+                document.getElementById('statusText').textContent = '配信準備完了 - 固定ID接続対応';
+                document.getElementById('copyIdBtn').disabled = false;
             });
 
             peer.on('call', function(call) {
-                console.log('🔔 通話要求を受信:', call.peer);
+                console.log('📞 通話要求を受信:', call.peer);
                 
-                if (localStream) {
-                    console.log('📡 ローカルストリームで応答中...');
+                if (isStreaming && localStream) {
+                    // 配信中の場合、ストリームを送信
                     call.answer(localStream);
                     connections.push(call);
                     
-                    // 接続後の処理
-                    call.on('stream', function(remoteStream) {
-                        console.log('📺 受信側からの応答ストリーム');
-                    });
+                    // 低遅延設定の適用
+                    sendStreamToConnection(call);
                     
                     call.on('close', function() {
                         console.log('📴 通話終了:', call.peer);
-                        connections = connections.filter(conn => conn !== call);
+                        connections = connections.filter(c => c !== call);
                         updateConnectionStatus();
                     });
                     
                     call.on('error', function(error) {
                         console.error('❌ 通話エラー:', error);
-                        connections = connections.filter(conn => conn !== call);
-                        updateConnectionStatus();
                     });
                     
-                    // 配信品質を最適化
-                    sendStreamToConnection(call);
                     updateConnectionStatus();
-                    
-                    console.log('✅ 新しい視聴者が接続しました:', call.peer);
                 } else {
-                    console.error('❌ ローカルストリームが利用できません');
-                    call.close();
+                    // 配信していない場合は拒否
+                    console.log('❌ 配信していないため通話を拒否');
                 }
             });
 
             peer.on('connection', function(conn) {
-                console.log('📡 データ接続を受信:', conn.peer);
-                conn.on('open', function() {
-                    console.log('✅ データ接続開始');
-                    // 接続確認のレスポンス
-                    conn.send({ type: 'ping', message: '配信準備完了' });
-                });
+                console.log('📡 データ接続:', conn.peer);
                 
-                conn.on('data', function(data) {
-                    console.log('📥 データ受信:', data);
+                conn.on('open', function() {
+                    console.log('✅ データ接続確立:', conn.peer);
+                    connections.push(conn);
+                    updateConnectionStatus();
                 });
                 
                 conn.on('close', function() {
-                    console.log('📴 データ接続終了');
+                    console.log('📴 データ接続終了:', conn.peer);
+                    connections = connections.filter(c => c !== conn);
+                    updateConnectionStatus();
+                });
+                
+                conn.on('error', function(error) {
+                    console.error('❌ データ接続エラー:', error);
                 });
             });
 
             peer.on('error', function(err) {
                 console.error('❌ PeerJS エラー:', err);
-                document.getElementById('connectionStatus').textContent = 'エラー: ' + err.type;
+                document.getElementById('statusText').textContent = 'エラー: ' + err.message;
                 
-                // エラーの種類に応じて詳細なメッセージを表示
-                let errorMessage = 'エラーが発生しました: ';
-                switch (err.type) {
-                    case 'network':
-                        errorMessage += 'ネットワーク接続エラー';
-                        break;
-                    case 'server-error':
-                        errorMessage += 'サーバーエラー';
-                        break;
-                    case 'unavailable-id':
-                        errorMessage += 'IDが使用中です';
-                        break;
-                    case 'browser-incompatible':
-                        errorMessage += 'ブラウザが対応していません';
-                        break;
-                    default:
-                        errorMessage += err.type;
-                }
-                
-                document.getElementById('statusText').textContent = errorMessage;
-                
-                // 接続エラーの場合は再接続を試行
+                // 自動再接続
                 if (err.type === 'network' || err.type === 'server-error') {
                     console.log('🔄 5秒後に自動再接続を試行します...');
                     setTimeout(() => {
@@ -359,20 +375,32 @@
             });
         }
 
+        // 接続状態を更新
+        function updateConnectionStatus() {
+            const count = connections.length;
+            document.getElementById('connectionCount').textContent = count;
+            document.getElementById('connectionStatus').textContent = count > 0 ? '接続中' : '待機中';
+        }
+
         // 配信IDをコピー
         function copyBroadcastId() {
-            const peerId = document.getElementById('peerId').textContent;
-            if (peerId && peerId !== '準備中...') {
-                navigator.clipboard.writeText(peerId).then(() => {
+            if (peer && peer.id) {
+                navigator.clipboard.writeText(peer.id).then(() => {
+                    console.log('📋 配信IDをクリップボードにコピー:', peer.id);
+                    
+                    // 視覚的なフィードバック
                     const btn = document.getElementById('copyIdBtn');
                     const originalText = btn.textContent;
-                    btn.textContent = 'コピー完了!';
+                    btn.textContent = '✅ コピー完了';
+                    btn.style.backgroundColor = '#4CAF50';
+                    
                     setTimeout(() => {
                         btn.textContent = originalText;
+                        btn.style.backgroundColor = '';
                     }, 2000);
                 }).catch(err => {
-                    console.error('コピーに失敗:', err);
-                    alert('配信ID: ' + peerId);
+                    console.error('❌ コピーに失敗:', err);
+                    alert('配信ID: ' + peer.id + '\n\n手動でコピーしてください');
                 });
             }
         }
@@ -410,30 +438,6 @@
                     }
                 }
             }
-        }
-
-        // 接続状態を更新
-        function updateConnectionStatus() {
-            const activeConnections = connections.filter(conn => conn.open).length;
-            document.getElementById('connectionStatus').textContent = 
-                `接続中: ${activeConnections}台`;
-                
-            // 接続状態をリアルタイムで監視
-            connections.forEach(conn => {
-                if (conn.peerConnection) {
-                    conn.peerConnection.oniceconnectionstatechange = function() {
-                        console.log('ICE接続状態:', conn.peerConnection.iceConnectionState);
-                        if (conn.peerConnection.iceConnectionState === 'disconnected' || 
-                            conn.peerConnection.iceConnectionState === 'failed') {
-                            connections = connections.filter(c => c !== conn);
-                            updateConnectionStatus();
-                        }
-                    };
-                }
-            });
-            
-            // 統計情報も更新
-            updateStreamStats();
         }
 
         // 全画面表示
