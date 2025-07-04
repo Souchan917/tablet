@@ -30,6 +30,7 @@
             cursor: pointer;
             border-radius: 4px;
             margin: 5px;
+            font-size: 14px;
         }
         button:hover {
             background-color: #7FFF7F;
@@ -38,6 +39,16 @@
             background-color: #666;
             color: #999;
             cursor: not-allowed;
+        }
+        /* 低遅延ボタンのスタイル */
+        button[onclick*="LowLatency"], button[onclick*="lowLatency"] {
+            background: linear-gradient(45deg, #FF6B6B, #FF8E8E);
+            color: #fff;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(255, 107, 107, 0.3);
+        }
+        button[onclick*="LowLatency"]:hover, button[onclick*="lowLatency"]:hover {
+            background: linear-gradient(45deg, #FF5252, #FF7979);
         }
         input {
             background-color: #333;
@@ -79,10 +90,13 @@
         <div class="test-section">
             <h2>1. PeerJS基本テスト</h2>
             <button onclick="initPeer()">PeerJS初期化</button>
+            <button onclick="initLowLatencyPeer()">🚀 低遅延モード初期化</button>
             <button onclick="startCamera()">カメラ開始</button>
+            <button onclick="startLowLatencyCamera()">🚀 低遅延カメラ開始</button>
             <div class="status">
                 <div>自分のID: <span id="myId">未初期化</span></div>
                 <div>接続状態: <span id="peerStatus">未接続</span></div>
+                <div>モード: <span id="modeStatus">通常</span></div>
             </div>
             <video id="localVideo" autoplay muted playsinline></video>
         </div>
@@ -92,14 +106,30 @@
             <input type="text" id="targetId" placeholder="接続先のIDを入力">
             <button onclick="testConnection()">接続テスト</button>
             <button onclick="connectToTarget()">通話開始</button>
+            <button onclick="connectLowLatency()">🚀 低遅延通話開始</button>
             <div class="status">
                 <div>接続先: <span id="targetStatus">未接続</span></div>
+                <div>通話モード: <span id="callMode">未設定</span></div>
             </div>
             <video id="remoteVideo" autoplay playsinline></video>
         </div>
         
         <div class="test-section">
-            <h2>3. ログ</h2>
+            <h2>3. 統計情報</h2>
+            <button onclick="startStats()">統計開始</button>
+            <button onclick="stopStats()">統計停止</button>
+            <div class="status">
+                <div>送信ビットレート: <span id="sendBitrate">--- kbps</span></div>
+                <div>受信ビットレート: <span id="receiveBitrate">--- kbps</span></div>
+                <div>送信FPS: <span id="sendFps">--- fps</span></div>
+                <div>受信FPS: <span id="receiveFps">--- fps</span></div>
+                <div>パケットロス: <span id="packetLoss">--- %</span></div>
+                <div>遅延: <span id="rtt">--- ms</span></div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>4. ログ</h2>
             <button onclick="clearLogs()">ログクリア</button>
             <div id="logs" class="logs"></div>
         </div>
@@ -110,6 +140,8 @@
         let peer = null;
         let localStream = null;
         let call = null;
+        let isLowLatencyMode = false;
+        let statsInterval = null;
         
         function log(message) {
             const logs = document.getElementById('logs');
@@ -130,6 +162,9 @@
             peer = new Peer(peerId, {
                 debug: 1
             });
+            
+            isLowLatencyMode = false;
+            document.getElementById('modeStatus').textContent = '通常';
             
             peer.on('open', function(id) {
                 log('✅ PeerJS接続成功: ' + id);
@@ -162,6 +197,62 @@
             });
         }
         
+        function initLowLatencyPeer() {
+            const peerId = 'test-lowlatency-' + Math.random().toString(36).substr(2, 9);
+            log('🚀 低遅延PeerJS初期化開始: ' + peerId);
+            
+            // 低遅延最適化されたPeerJS設定
+            peer = new Peer(peerId, {
+                debug: 1,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' }
+                    ],
+                    iceTransportPolicy: 'all',
+                    bundlePolicy: 'max-compat',
+                    rtcpMuxPolicy: 'require',
+                    iceCandidatePoolSize: 10,
+                    // 低遅延に重要な設定
+                    sdpSemantics: 'unified-plan'
+                }
+            });
+            
+            isLowLatencyMode = true;
+            document.getElementById('modeStatus').textContent = '低遅延モード';
+            
+            peer.on('open', function(id) {
+                log('✅ 低遅延PeerJS接続成功: ' + id);
+                document.getElementById('myId').textContent = id;
+                document.getElementById('peerStatus').textContent = '接続済み (低遅延)';
+            });
+            
+            peer.on('call', function(incomingCall) {
+                log('🚀 低遅延着信: ' + incomingCall.peer);
+                if (localStream) {
+                    incomingCall.answer(localStream);
+                    setupLowLatencyCallEvents(incomingCall);
+                }
+            });
+            
+            peer.on('connection', function(conn) {
+                log('📡 低遅延データ接続: ' + conn.peer);
+                conn.on('open', function() {
+                    log('✅ 低遅延データ接続開始');
+                    conn.send('Hello from low-latency ' + peer.id);
+                });
+                conn.on('data', function(data) {
+                    log('📥 低遅延データ受信: ' + data);
+                });
+            });
+            
+            peer.on('error', function(err) {
+                log('❌ 低遅延PeerJSエラー: ' + err.type + ' - ' + err.message);
+                document.getElementById('peerStatus').textContent = 'エラー: ' + err.type;
+            });
+        }
+        
         async function startCamera() {
             try {
                 log('📹 カメラ開始...');
@@ -175,6 +266,65 @@
                 
             } catch (error) {
                 log('❌ カメラエラー: ' + error.message);
+            }
+        }
+        
+        async function startLowLatencyCamera() {
+            try {
+                log('🚀 低遅延カメラ開始...');
+                
+                // 低遅延最適化されたカメラ設定
+                const constraints = {
+                    video: {
+                        width: { ideal: 1280, max: 1920 },
+                        height: { ideal: 720, max: 1080 },
+                        frameRate: { ideal: 60, max: 60 },
+                        facingMode: 'user',
+                        // 低遅延に重要な設定
+                        latency: { ideal: 0.01 },
+                        aspectRatio: { ideal: 16/9 }
+                    },
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                        // 低遅延オーディオ設定
+                        latency: { ideal: 0.01 },
+                        channelCount: { ideal: 2, max: 2 },
+                        sampleRate: { ideal: 48000 },
+                        sampleSize: { ideal: 16 }
+                    }
+                };
+                
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                const video = document.getElementById('localVideo');
+                video.srcObject = localStream;
+                
+                // 低遅延のためのビデオ設定
+                video.muted = true;
+                video.autoplay = true;
+                video.playsInline = true;
+                video.setAttribute('playsinline', 'true');
+                
+                // GPU加速とパフォーマンス最適化
+                if (video.style) {
+                    video.style.transform = 'translateZ(0)';
+                    video.style.willChange = 'transform';
+                    video.style.backfaceVisibility = 'hidden';
+                }
+                
+                log('✅ 低遅延カメラ開始成功');
+                
+                // カメラ設定の詳細をログ出力
+                const videoTrack = localStream.getVideoTracks()[0];
+                if (videoTrack) {
+                    const settings = videoTrack.getSettings();
+                    log('📊 カメラ設定: ' + settings.width + 'x' + settings.height + ' @' + settings.frameRate + 'fps');
+                }
+                
+            } catch (error) {
+                log('❌ 低遅延カメラエラー: ' + error.message);
             }
         }
         
@@ -227,7 +377,26 @@
             
             log('📞 通話開始: ' + targetId);
             call = peer.call(targetId, localStream);
+            document.getElementById('callMode').textContent = '通常通話';
             setupCallEvents(call);
+        }
+        
+        function connectLowLatency() {
+            const targetId = document.getElementById('targetId').value.trim();
+            if (!targetId) {
+                alert('接続先IDを入力してください');
+                return;
+            }
+            
+            if (!peer || !localStream) {
+                log('❌ PeerJSまたはカメラが準備できていません');
+                return;
+            }
+            
+            log('🚀 低遅延通話開始: ' + targetId);
+            call = peer.call(targetId, localStream);
+            document.getElementById('callMode').textContent = '低遅延通話';
+            setupLowLatencyCallEvents(call);
         }
         
         function setupCallEvents(call) {
@@ -240,17 +409,199 @@
             call.on('close', function() {
                 log('📴 通話終了');
                 document.getElementById('targetStatus').textContent = '切断';
+                document.getElementById('callMode').textContent = '未設定';
             });
             
             call.on('error', function(error) {
                 log('❌ 通話エラー: ' + error);
                 document.getElementById('targetStatus').textContent = 'エラー';
+                document.getElementById('callMode').textContent = '未設定';
             });
+        }
+        
+        async function setupLowLatencyCallEvents(call) {
+            call.on('stream', function(remoteStream) {
+                log('🚀 低遅延リモートストリーム受信');
+                
+                // 受信側の低遅延設定
+                try {
+                    const pc = call.peerConnection;
+                    
+                    // 受信者の低遅延設定
+                    const receivers = pc.getReceivers();
+                    receivers.forEach(receiver => {
+                        if (receiver.track && receiver.track.kind === 'video') {
+                            log('🎯 ビデオ受信者の低遅延設定');
+                            
+                            // トランシーバーの設定
+                            const transceiver = pc.getTransceivers().find(t => t.receiver === receiver);
+                            if (transceiver) {
+                                transceiver.direction = 'recvonly';
+                                log('✅ 受信専用モード設定');
+                            }
+                        }
+                    });
+                    
+                    // 送信者の低遅延設定
+                    const senders = pc.getSenders();
+                    senders.forEach(async sender => {
+                        if (sender.track && sender.track.kind === 'video') {
+                            const params = sender.getParameters();
+                            
+                            if (params.encodings && params.encodings.length > 0) {
+                                params.encodings.forEach(encoding => {
+                                    // 低遅延に最適化
+                                    encoding.maxBitrate = 3000000; // 3Mbps
+                                    encoding.maxFramerate = 60; // 60fps対応
+                                    encoding.scaleResolutionDownBy = 1; // 解像度維持
+                                    encoding.priority = 'high'; // 高優先度
+                                });
+                                
+                                try {
+                                    await sender.setParameters(params);
+                                    log('✅ 低遅延エンコーディング設定完了');
+                                } catch (e) {
+                                    log('⚠️ エンコーディング設定失敗: ' + e.message);
+                                }
+                            }
+                            
+                            // 追加の低遅延設定
+                            const transceiver = pc.getTransceivers().find(t => t.sender === sender);
+                            if (transceiver) {
+                                transceiver.direction = 'sendonly';
+                                log('✅ 送信専用モード設定');
+                            }
+                        }
+                        
+                        // オーディオの低遅延設定
+                        if (sender.track && sender.track.kind === 'audio') {
+                            const params = sender.getParameters();
+                            if (params.encodings && params.encodings.length > 0) {
+                                params.encodings.forEach(encoding => {
+                                    encoding.priority = 'high';
+                                    encoding.maxBitrate = 128000; // 128kbps
+                                });
+                                try {
+                                    await sender.setParameters(params);
+                                    log('✅ オーディオ低遅延設定完了');
+                                } catch (e) {
+                                    log('⚠️ オーディオ設定失敗: ' + e.message);
+                                }
+                            }
+                        }
+                    });
+                    
+                } catch (error) {
+                    log('⚠️ 低遅延設定の一部が失敗: ' + error.message);
+                }
+                
+                // 低遅延のためのビデオ表示最適化
+                const video = document.getElementById('remoteVideo');
+                video.srcObject = remoteStream;
+                video.muted = true;
+                video.autoplay = true;
+                video.playsInline = true;
+                video.setAttribute('playsinline', 'true');
+                
+                // GPU加速とパフォーマンス最適化
+                if (video.style) {
+                    video.style.transform = 'translateZ(0)';
+                    video.style.willChange = 'transform';
+                    video.style.backfaceVisibility = 'hidden';
+                }
+                
+                document.getElementById('targetStatus').textContent = '低遅延通話中';
+            });
+            
+            call.on('close', function() {
+                log('📴 低遅延通話終了');
+                document.getElementById('targetStatus').textContent = '切断';
+                document.getElementById('callMode').textContent = '未設定';
+            });
+            
+            call.on('error', function(error) {
+                log('❌ 低遅延通話エラー: ' + error);
+                document.getElementById('targetStatus').textContent = 'エラー';
+                document.getElementById('callMode').textContent = '未設定';
+            });
+        }
+        
+        // 統計情報の開始
+        function startStats() {
+            if (statsInterval) {
+                clearInterval(statsInterval);
+            }
+            
+            if (!call || !call.peerConnection) {
+                log('❌ 通話が開始されていません');
+                return;
+            }
+            
+            log('📊 統計情報監視開始');
+            
+            statsInterval = setInterval(async () => {
+                try {
+                    const stats = await call.peerConnection.getStats();
+                    
+                    let sendBitrate = 0;
+                    let receiveBitrate = 0;
+                    let sendFps = 0;
+                    let receiveFps = 0;
+                    let packetLoss = 0;
+                    let rtt = 0;
+                    
+                    stats.forEach(report => {
+                        if (report.type === 'outbound-rtp' && report.mediaType === 'video') {
+                            sendBitrate = Math.round(report.bytesSent * 8 / 1000);
+                            sendFps = report.framesPerSecond || 0;
+                        }
+                        
+                        if (report.type === 'inbound-rtp' && report.mediaType === 'video') {
+                            receiveBitrate = Math.round(report.bytesReceived * 8 / 1000);
+                            receiveFps = report.framesPerSecond || 0;
+                            
+                            const packetsLost = report.packetsLost || 0;
+                            const packetsReceived = report.packetsReceived || 1;
+                            packetLoss = ((packetsLost / (packetsLost + packetsReceived)) * 100).toFixed(2);
+                        }
+                        
+                        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                            rtt = report.currentRoundTripTime ? Math.round(report.currentRoundTripTime * 1000) : 0;
+                        }
+                    });
+                    
+                    // 統計情報を更新
+                    document.getElementById('sendBitrate').textContent = sendBitrate + ' kbps';
+                    document.getElementById('receiveBitrate').textContent = receiveBitrate + ' kbps';
+                    document.getElementById('sendFps').textContent = sendFps + ' fps';
+                    document.getElementById('receiveFps').textContent = receiveFps + ' fps';
+                    document.getElementById('packetLoss').textContent = packetLoss + ' %';
+                    document.getElementById('rtt').textContent = rtt + ' ms';
+                    
+                    // 低遅延モードの場合は詳細ログを出力
+                    if (isLowLatencyMode) {
+                        log('🚀 低遅延統計: ' + sendBitrate + 'kbps↑ ' + receiveBitrate + 'kbps↓ ' + sendFps + 'fps↑ ' + receiveFps + 'fps↓ RTT:' + rtt + 'ms');
+                    }
+                    
+                } catch (error) {
+                    log('❌ 統計取得エラー: ' + error.message);
+                }
+            }, 1000);
+        }
+        
+        // 統計情報の停止
+        function stopStats() {
+            if (statsInterval) {
+                clearInterval(statsInterval);
+                statsInterval = null;
+                log('📊 統計情報監視停止');
+            }
         }
         
         // 初期化
         log('🚀 WebRTCテストページ開始');
         log('手順: 1) PeerJS初期化 → 2) カメラ開始 → 3) IDをコピーして別タブで共有');
+        log('🚀 低遅延モード: 低遅延初期化 → 低遅延カメラ → 低遅延通話 → 統計開始');
     </script>
 </body>
 </html> 

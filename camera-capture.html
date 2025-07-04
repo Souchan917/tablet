@@ -34,9 +34,9 @@
             <div class="connection-info">
                 <h3>接続情報</h3>
                 <p>配信ID: <span id="peerId">準備中...</span></p>
-                <button class="camera-btn" id="copyIdBtn" disabled>📋 IDをコピー</button>
+                <button class="camera-btn" id="copyIdBtn" disabled>IDをコピー</button>
                 <p>接続状態: <span id="connectionStatus">準備中</span></p>
-                <p style="font-size: 12px; color: #9AFF9A;">🚀 簡単接続モード - 受信側は自動接続されます</p>
+                <p>画質: <span id="qualityStatus">自動調整中</span></p>
             </div>
             
             <div class="stream-stats">
@@ -281,11 +281,11 @@
             updateConnectionStatus();
         }
 
-        // 配信側の固定ID（簡単接続用）
-        const peerId = 'tablet-broadcast-fixed';
-
         // PeerJS接続を初期化
         function initializePeer() {
+            // 固定のpeerIDを生成（配信側）
+            const peerId = 'tablet-broadcast-' + Date.now().toString(36);
+            
             console.log('🔄 PeerJS初期化開始:', peerId);
             
             // 低遅延最適化されたPeerJS設定
@@ -307,65 +307,92 @@
             peer.on('open', function(id) {
                 console.log('✅ PeerJS接続成功:', id);
                 document.getElementById('peerId').textContent = id;
+                document.getElementById('connectionStatus').textContent = '接続可能';
+                document.getElementById('copyIdBtn').disabled = false;
                 
                 // 接続成功をユーザーに通知
-                document.getElementById('statusText').textContent = '配信準備完了 - 固定ID接続対応';
-                document.getElementById('copyIdBtn').disabled = false;
+                document.getElementById('statusText').textContent = '配信準備完了 - 配信IDをコピーして共有してください';
             });
 
             peer.on('call', function(call) {
-                console.log('📞 通話要求を受信:', call.peer);
+                console.log('🔔 通話要求を受信:', call.peer);
                 
-                if (isStreaming && localStream) {
-                    // 配信中の場合、ストリームを送信
+                if (localStream) {
+                    console.log('📡 ローカルストリームで応答中...');
                     call.answer(localStream);
                     connections.push(call);
                     
-                    // 低遅延設定の適用
-                    sendStreamToConnection(call);
+                    // 接続後の処理
+                    call.on('stream', function(remoteStream) {
+                        console.log('📺 受信側からの応答ストリーム');
+                    });
                     
                     call.on('close', function() {
                         console.log('📴 通話終了:', call.peer);
-                        connections = connections.filter(c => c !== call);
+                        connections = connections.filter(conn => conn !== call);
                         updateConnectionStatus();
                     });
                     
                     call.on('error', function(error) {
                         console.error('❌ 通話エラー:', error);
+                        connections = connections.filter(conn => conn !== call);
+                        updateConnectionStatus();
                     });
                     
+                    // 配信品質を最適化
+                    sendStreamToConnection(call);
                     updateConnectionStatus();
+                    
+                    console.log('✅ 新しい視聴者が接続しました:', call.peer);
                 } else {
-                    // 配信していない場合は拒否
-                    console.log('❌ 配信していないため通話を拒否');
+                    console.error('❌ ローカルストリームが利用できません');
+                    call.close();
                 }
             });
 
             peer.on('connection', function(conn) {
-                console.log('📡 データ接続:', conn.peer);
-                
+                console.log('📡 データ接続を受信:', conn.peer);
                 conn.on('open', function() {
-                    console.log('✅ データ接続確立:', conn.peer);
-                    connections.push(conn);
-                    updateConnectionStatus();
+                    console.log('✅ データ接続開始');
+                    // 接続確認のレスポンス
+                    conn.send({ type: 'ping', message: '配信準備完了' });
+                });
+                
+                conn.on('data', function(data) {
+                    console.log('📥 データ受信:', data);
                 });
                 
                 conn.on('close', function() {
-                    console.log('📴 データ接続終了:', conn.peer);
-                    connections = connections.filter(c => c !== conn);
-                    updateConnectionStatus();
-                });
-                
-                conn.on('error', function(error) {
-                    console.error('❌ データ接続エラー:', error);
+                    console.log('📴 データ接続終了');
                 });
             });
 
             peer.on('error', function(err) {
                 console.error('❌ PeerJS エラー:', err);
-                document.getElementById('statusText').textContent = 'エラー: ' + err.message;
+                document.getElementById('connectionStatus').textContent = 'エラー: ' + err.type;
                 
-                // 自動再接続
+                // エラーの種類に応じて詳細なメッセージを表示
+                let errorMessage = 'エラーが発生しました: ';
+                switch (err.type) {
+                    case 'network':
+                        errorMessage += 'ネットワーク接続エラー';
+                        break;
+                    case 'server-error':
+                        errorMessage += 'サーバーエラー';
+                        break;
+                    case 'unavailable-id':
+                        errorMessage += 'IDが使用中です';
+                        break;
+                    case 'browser-incompatible':
+                        errorMessage += 'ブラウザが対応していません';
+                        break;
+                    default:
+                        errorMessage += err.type;
+                }
+                
+                document.getElementById('statusText').textContent = errorMessage;
+                
+                // 接続エラーの場合は再接続を試行
                 if (err.type === 'network' || err.type === 'server-error') {
                     console.log('🔄 5秒後に自動再接続を試行します...');
                     setTimeout(() => {
@@ -375,32 +402,20 @@
             });
         }
 
-        // 接続状態を更新
-        function updateConnectionStatus() {
-            const count = connections.length;
-            document.getElementById('connectionCount').textContent = count;
-            document.getElementById('connectionStatus').textContent = count > 0 ? '接続中' : '待機中';
-        }
-
         // 配信IDをコピー
         function copyBroadcastId() {
-            if (peer && peer.id) {
-                navigator.clipboard.writeText(peer.id).then(() => {
-                    console.log('📋 配信IDをクリップボードにコピー:', peer.id);
-                    
-                    // 視覚的なフィードバック
+            const peerId = document.getElementById('peerId').textContent;
+            if (peerId && peerId !== '準備中...') {
+                navigator.clipboard.writeText(peerId).then(() => {
                     const btn = document.getElementById('copyIdBtn');
                     const originalText = btn.textContent;
-                    btn.textContent = '✅ コピー完了';
-                    btn.style.backgroundColor = '#4CAF50';
-                    
+                    btn.textContent = 'コピー完了!';
                     setTimeout(() => {
                         btn.textContent = originalText;
-                        btn.style.backgroundColor = '';
                     }, 2000);
                 }).catch(err => {
-                    console.error('❌ コピーに失敗:', err);
-                    alert('配信ID: ' + peer.id + '\n\n手動でコピーしてください');
+                    console.error('コピーに失敗:', err);
+                    alert('配信ID: ' + peerId);
                 });
             }
         }
@@ -438,6 +453,30 @@
                     }
                 }
             }
+        }
+
+        // 接続状態を更新
+        function updateConnectionStatus() {
+            const activeConnections = connections.filter(conn => conn.open).length;
+            document.getElementById('connectionStatus').textContent = 
+                `接続中: ${activeConnections}台`;
+                
+            // 接続状態をリアルタイムで監視
+            connections.forEach(conn => {
+                if (conn.peerConnection) {
+                    conn.peerConnection.oniceconnectionstatechange = function() {
+                        console.log('ICE接続状態:', conn.peerConnection.iceConnectionState);
+                        if (conn.peerConnection.iceConnectionState === 'disconnected' || 
+                            conn.peerConnection.iceConnectionState === 'failed') {
+                            connections = connections.filter(c => c !== conn);
+                            updateConnectionStatus();
+                        }
+                    };
+                }
+            });
+            
+            // 統計情報も更新
+            updateStreamStats();
         }
 
         // 全画面表示
