@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📱 低遅延カメラ配信</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #000428, #004e92);
+            color: white;
+            padding: 10px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #FF6B6B, #FF8E8E);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .header .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .status {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .status.active {
+            background: rgba(76, 175, 80, 0.3);
+            border-color: #4CAF50;
+        }
+        
+        .status.warning {
+            background: rgba(255, 152, 0, 0.3);
+            border-color: #FF9800;
+        }
+        
+        .controls {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .device-info {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .device-info input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #FF6B6B;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 16px;
+            text-align: center;
+        }
+        
+        .device-info input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn-primary { 
+            background: linear-gradient(135deg, #2196F3, #64B5F6);
+            color: white;
+        }
+        
+        .btn-success { 
+            background: linear-gradient(135deg, #4CAF50, #81C784);
+            color: white;
+        }
+        
+        .btn-danger { 
+            background: linear-gradient(135deg, #f44336, #EF5350);
+            color: white;
+        }
+        
+        .btn-ultra { 
+            background: linear-gradient(135deg, #FF6B6B, #FF8E8E);
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-ultra::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn-ultra:hover::before {
+            left: 100%;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        video {
+            width: 100%;
+            height: auto;
+            background-color: #000;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .connection-info {
+            background: linear-gradient(135deg, #000, #1a1a1a);
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 20px;
+            border: 2px solid #00ff00;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+        
+        .stats {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 14px;
+        }
+        
+        .stat-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #00ff00;
+        }
+        
+        .back-btn {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 1000;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .instructions {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.6;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .instructions h3 {
+            color: #FF6B6B;
+            margin-bottom: 10px;
+        }
+        
+        .ping-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 12px;
+            height: 12px;
+            background: #4CAF50;
+            border-radius: 50%;
+            animation: ping 2s infinite;
+        }
+        
+        @keyframes ping {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+        }
+        
+        .error-message {
+            background: rgba(244, 67, 54, 0.2);
+            color: #ff6b6b;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border: 1px solid rgba(244, 67, 54, 0.5);
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 5px;
+            }
+            
+            .header h1 {
+                font-size: 20px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="back-btn" onclick="goBack()">← 戻る</button>
+    
+    <div class="container">
+        <div class="header">
+            <h1>🚀 低遅延カメラ配信</h1>
+            <div class="subtitle">Ultra Low Latency Broadcasting</div>
+            <div class="ping-indicator"></div>
+        </div>
+        
+        <div class="status" id="status">
+            📡 配信準備中...
+        </div>
+        
+        <div class="device-info">
+            <div style="margin-bottom: 10px;">📱 デバイス情報</div>
+            <input type="text" id="deviceName" placeholder="デバイス名 (例: スマホ1)" maxlength="20">
+            <div style="font-size: 12px; color: rgba(255, 255, 255, 0.6);">
+                視聴側で表示される名前です
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn-ultra" id="startUltraCamera">🚀 超低遅延カメラ開始</button>
+            <button class="btn-success" id="startBroadcast" disabled>📡 配信開始</button>
+            <button class="btn-danger" id="stopBroadcast" disabled>⏹️ 配信停止</button>
+        </div>
+        
+        <video id="localVideo" autoplay muted playsinline></video>
+        
+        <div class="connection-info" id="connectionInfo" style="display: none;">
+            <div>🎯 配信ID: <span id="broadcastId">準備中...</span></div>
+            <div>📡 配信中: <span id="deviceNameDisplay">-</span></div>
+            <div>👥 視聴者数: <span id="viewerCount">0</span>人</div>
+        </div>
+        
+        <div class="stats" id="stats" style="display: none;">
+            <div style="text-align: center; margin-bottom: 10px; font-weight: bold;">
+                📊 リアルタイム統計
+            </div>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="sendBitrate">--- kbps</div>
+                    <div>送信レート</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="sendFps">--- fps</div>
+                    <div>送信FPS</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="resolution">---</div>
+                    <div>解像度</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="latency">--- ms</div>
+                    <div>遅延</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h3>🎯 使用方法</h3>
+            <ol>
+                <li>デバイス名を入力（識別用）</li>
+                <li>「🚀 超低遅延カメラ開始」をタップ</li>
+                <li>「📡 配信開始」をタップ</li>
+                <li>視聴側で自動検出されます</li>
+                <li>超低遅延で映像が配信されます</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- Firebase CDN -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    
+    <!-- PeerJS CDN -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    
+    <script>
+        let peer = null;
+        let localStream = null;
+        let connections = [];
+        let calls = [];
+        let isStreaming = false;
+        let broadcastId = null;
+        let deviceName = '';
+        let statsInterval = null;
+        
+        // DOM要素
+        const status = document.getElementById('status');
+        const deviceNameInput = document.getElementById('deviceName');
+        const localVideo = document.getElementById('localVideo');
+        const connectionInfo = document.getElementById('connectionInfo');
+        const broadcastIdSpan = document.getElementById('broadcastId');
+        const deviceNameDisplay = document.getElementById('deviceNameDisplay');
+        const viewerCountSpan = document.getElementById('viewerCount');
+        const statsDiv = document.getElementById('stats');
+        
+        const startUltraCameraBtn = document.getElementById('startUltraCamera');
+        const startBroadcastBtn = document.getElementById('startBroadcast');
+        const stopBroadcastBtn = document.getElementById('stopBroadcast');
+        
+        // ログ機能
+        function log(message) {
+            console.log(`[${new Date().toLocaleTimeString()}] ${message}`);
+        }
+        
+        // ステータス更新
+        function updateStatus(message, className = '') {
+            status.textContent = message;
+            status.className = className ? `status ${className}` : 'status';
+        }
+        
+        // デバイス名更新
+        function updateDeviceName() {
+            deviceName = deviceNameInput.value.trim() || 'デバイス';
+            deviceNameDisplay.textContent = deviceName;
+        }
+        
+        // 視聴者数更新
+        function updateViewerCount() {
+            viewerCountSpan.textContent = connections.length;
+        }
+        
+        // Firebase配信リスト更新
+        function updateBroadcastList(isActive) {
+            if (typeof firebase !== 'undefined' && firebase.database) {
+                const ref = firebase.database().ref('ultra-broadcasts');
+                const key = `device-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+                
+                if (isActive) {
+                    ref.child(key).set({
+                        id: broadcastId,
+                        name: deviceName,
+                        timestamp: Date.now(),
+                        active: true,
+                        quality: 'ultra-low-latency',
+                        resolution: '1280x720',
+                        fps: 60
+                    });
+                } else {
+                    // 配信停止時は全て削除
+                    ref.orderByChild('id').equalTo(broadcastId).once('value', (snapshot) => {
+                        snapshot.forEach((child) => {
+                            child.ref.remove();
+                        });
+                    });
+                }
+            }
+        }
+        
+        // 定期的なハートビート
+        function startHeartbeat() {
+            setInterval(() => {
+                if (isStreaming) {
+                    updateBroadcastList(true);
+                }
+            }, 5000); // 5秒ごと
+        }
+        
+        // 超低遅延カメラ開始
+        async function startUltraCamera() {
+            try {
+                updateStatus('🚀 超低遅延カメラ起動中...', 'warning');
+                log('超低遅延カメラ開始');
+                
+                // 低遅延最適化されたカメラ設定
+                const constraints = {
+                    video: {
+                        width: { ideal: 1280, max: 1920 },
+                        height: { ideal: 720, max: 1080 },
+                        frameRate: { ideal: 60, max: 60 },
+                        facingMode: 'environment', // 背面カメラ
+                        // 低遅延に重要な設定
+                        latency: { ideal: 0.01 },
+                        aspectRatio: { ideal: 16/9 }
+                    },
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                        // 低遅延オーディオ設定
+                        latency: { ideal: 0.01 },
+                        channelCount: { ideal: 2, max: 2 },
+                        sampleRate: { ideal: 48000 },
+                        sampleSize: { ideal: 16 }
+                    }
+                };
+                
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                // 低遅延のためのビデオ設定
+                localVideo.srcObject = localStream;
+                localVideo.muted = true;
+                localVideo.autoplay = true;
+                localVideo.playsInline = true;
+                localVideo.setAttribute('playsinline', 'true');
+                
+                // GPU加速とパフォーマンス最適化
+                localVideo.style.transform = 'translateZ(0)';
+                localVideo.style.willChange = 'transform';
+                localVideo.style.backfaceVisibility = 'hidden';
+                
+                // カメラ情報の表示
+                const videoTrack = localStream.getVideoTracks()[0];
+                if (videoTrack) {
+                    const settings = videoTrack.getSettings();
+                    const resolution = `${settings.width}x${settings.height}`;
+                    document.getElementById('resolution').textContent = resolution;
+                    log(`カメラ設定: ${resolution} @${settings.frameRate}fps`);
+                }
+                
+                startUltraCameraBtn.disabled = true;
+                startBroadcastBtn.disabled = false;
+                deviceNameInput.disabled = true;
+                
+                updateStatus('🎯 超低遅延カメラ準備完了 - 配信を開始してください', 'active');
+                
+            } catch (error) {
+                log(`カメラエラー: ${error.message}`);
+                updateStatus('❌ カメラアクセスエラー');
+                showError('カメラにアクセスできません: ' + error.message);
+            }
+        }
+        
+        // 配信開始
+        async function startBroadcast() {
+            try {
+                if (!localStream) {
+                    alert('まずカメラを開始してください');
+                    return;
+                }
+                
+                updateDeviceName();
+                updateStatus('📡 超低遅延配信準備中...', 'warning');
+                log('配信開始');
+                
+                // 超低遅延PeerJS設定
+                broadcastId = `ultra-${Date.now()}-${Math.random().toString(36).substr(2, 8)}`;
+                
+                peer = new Peer(broadcastId, {
+                    debug: 1,
+                    config: {
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:stun1.l.google.com:19302' },
+                            { urls: 'stun:stun2.l.google.com:19302' }
+                        ],
+                        iceTransportPolicy: 'all',
+                        bundlePolicy: 'max-compat',
+                        rtcpMuxPolicy: 'require',
+                        iceCandidatePoolSize: 10,
+                        // 低遅延に重要な設定
+                        sdpSemantics: 'unified-plan'
+                    }
+                });
+                
+                peer.on('open', (id) => {
+                    log(`配信ID: ${id}`);
+                    broadcastIdSpan.textContent = id;
+                    
+                    connectionInfo.style.display = 'block';
+                    statsDiv.style.display = 'block';
+                    
+                    updateBroadcastList(true);
+                    startHeartbeat();
+                    startStats();
+                    
+                    updateStatus('🔴 超低遅延配信中', 'active');
+                    isStreaming = true;
+                    
+                    startBroadcastBtn.disabled = true;
+                    stopBroadcastBtn.disabled = false;
+                });
+                
+                peer.on('connection', (conn) => {
+                    log(`新しい視聴者: ${conn.peer}`);
+                    setupConnection(conn);
+                });
+                
+                peer.on('call', (call) => {
+                    log(`視聴者からの通話: ${call.peer}`);
+                    call.answer(localStream);
+                    setupUltraLowLatencyCall(call);
+                });
+                
+                peer.on('error', (error) => {
+                    log(`Peer エラー: ${error.type} - ${error.message}`);
+                    if (error.type === 'unavailable-id') {
+                        // ID競合時の自動再試行
+                        setTimeout(() => {
+                            peer.destroy();
+                            startBroadcast();
+                        }, 1000);
+                    } else {
+                        updateStatus('❌ 配信エラー');
+                        showError('配信エラー: ' + error.message);
+                    }
+                });
+                
+            } catch (error) {
+                log(`配信開始エラー: ${error.message}`);
+                updateStatus('❌ 配信開始エラー');
+                showError('配信を開始できません: ' + error.message);
+            }
+        }
+        
+        // 接続設定
+        function setupConnection(conn) {
+            connections.push(conn);
+            updateViewerCount();
+            
+            conn.on('open', () => {
+                log(`データ接続確立: ${conn.peer}`);
+                conn.send({
+                    type: 'welcome',
+                    message: '超低遅延配信に接続しました',
+                    deviceName: deviceName,
+                    quality: 'ultra-low-latency'
+                });
+            });
+            
+            conn.on('data', (data) => {
+                log(`受信データ: ${JSON.stringify(data)}`);
+            });
+            
+            conn.on('close', () => {
+                log(`接続終了: ${conn.peer}`);
+                removeConnection(conn.peer);
+            });
+            
+            conn.on('error', (error) => {
+                log(`接続エラー: ${error.message}`);
+                removeConnection(conn.peer);
+            });
+        }
+        
+        // 超低遅延通話設定
+        async function setupUltraLowLatencyCall(call) {
+            calls.push(call);
+            
+            call.on('stream', (remoteStream) => {
+                // 送信側では特に処理なし
+            });
+            
+            call.on('close', () => {
+                log(`通話終了: ${call.peer}`);
+                removeCall(call.peer);
+            });
+            
+            call.on('error', (error) => {
+                log(`通話エラー: ${error.message}`);
+                removeCall(call.peer);
+            });
+            
+            // 超低遅延設定の適用
+            try {
+                const pc = call.peerConnection;
+                const senders = pc.getSenders();
+                
+                for (const sender of senders) {
+                    if (sender.track && sender.track.kind === 'video') {
+                        const params = sender.getParameters();
+                        
+                        if (params.encodings && params.encodings.length > 0) {
+                            params.encodings.forEach(encoding => {
+                                // 低遅延に最適化
+                                encoding.maxBitrate = 3000000; // 3Mbps
+                                encoding.maxFramerate = 60; // 60fps
+                                encoding.scaleResolutionDownBy = 1; // 解像度維持
+                                encoding.priority = 'high'; // 高優先度
+                            });
+                            
+                            await sender.setParameters(params);
+                            log('超低遅延エンコーディング設定完了');
+                        }
+                    }
+                    
+                    if (sender.track && sender.track.kind === 'audio') {
+                        const params = sender.getParameters();
+                        if (params.encodings && params.encodings.length > 0) {
+                            params.encodings.forEach(encoding => {
+                                encoding.priority = 'high';
+                                encoding.maxBitrate = 128000; // 128kbps
+                            });
+                            await sender.setParameters(params);
+                            log('超低遅延オーディオ設定完了');
+                        }
+                    }
+                }
+                
+            } catch (error) {
+                log(`低遅延設定エラー: ${error.message}`);
+            }
+        }
+        
+        // 接続削除
+        function removeConnection(peerId) {
+            connections = connections.filter(conn => conn.peer !== peerId);
+            updateViewerCount();
+        }
+        
+        // 通話削除
+        function removeCall(peerId) {
+            calls = calls.filter(call => call.peer !== peerId);
+        }
+        
+        // 統計情報開始
+        function startStats() {
+            if (statsInterval) {
+                clearInterval(statsInterval);
+            }
+            
+            statsInterval = setInterval(async () => {
+                if (calls.length > 0) {
+                    try {
+                        const call = calls[0];
+                        const stats = await call.peerConnection.getStats();
+                        
+                        let sendBitrate = 0;
+                        let sendFps = 0;
+                        let rtt = 0;
+                        
+                        stats.forEach(report => {
+                            if (report.type === 'outbound-rtp' && report.mediaType === 'video') {
+                                if (report.bytesSent) {
+                                    sendBitrate = Math.round((report.bytesSent * 8) / 1000);
+                                }
+                                if (report.framesPerSecond) {
+                                    sendFps = Math.round(report.framesPerSecond);
+                                }
+                            }
+                            if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                                if (report.currentRoundTripTime) {
+                                    rtt = Math.round(report.currentRoundTripTime * 1000);
+                                }
+                            }
+                        });
+                        
+                        document.getElementById('sendBitrate').textContent = sendBitrate + ' kbps';
+                        document.getElementById('sendFps').textContent = sendFps + ' fps';
+                        document.getElementById('latency').textContent = rtt + ' ms';
+                        
+                    } catch (error) {
+                        log(`統計情報エラー: ${error.message}`);
+                    }
+                }
+            }, 1000);
+        }
+        
+        // 配信停止
+        function stopBroadcast() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+                localVideo.srcObject = null;
+            }
+            
+            if (peer) {
+                peer.destroy();
+                peer = null;
+            }
+            
+            connections.forEach(conn => conn.close());
+            calls.forEach(call => call.close());
+            connections = [];
+            calls = [];
+            
+            if (statsInterval) {
+                clearInterval(statsInterval);
+                statsInterval = null;
+            }
+            
+            updateBroadcastList(false);
+            isStreaming = false;
+            broadcastId = null;
+            
+            startUltraCameraBtn.disabled = false;
+            startBroadcastBtn.disabled = true;
+            stopBroadcastBtn.disabled = true;
+            deviceNameInput.disabled = false;
+            
+            connectionInfo.style.display = 'none';
+            statsDiv.style.display = 'none';
+            
+            updateStatus('📡 配信停止');
+        }
+        
+        // エラーメッセージ表示
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            document.querySelector('.container').appendChild(errorDiv);
+            
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
+        }
+        
+        // 戻るボタン
+        function goBack() {
+            stopBroadcast();
+            window.location.href = 'index.html';
+        }
+        
+        // イベントリスナー
+        startUltraCameraBtn.addEventListener('click', startUltraCamera);
+        startBroadcastBtn.addEventListener('click', startBroadcast);
+        stopBroadcastBtn.addEventListener('click', stopBroadcast);
+        
+        deviceNameInput.addEventListener('input', updateDeviceName);
+        
+        // ページ離脱時のクリーンアップ
+        window.addEventListener('beforeunload', () => {
+            stopBroadcast();
+        });
+        
+        // 初期状態
+        updateStatus('📡 配信準備中...');
+        updateDeviceName();
+        log('超低遅延カメラ配信システム初期化完了');
+    </script>
+</body>
+</html> 

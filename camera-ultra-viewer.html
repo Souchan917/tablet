@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📺 低遅延カメラ視聴</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #000, #1a1a1a);
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+        
+        /* 隠しボタン（左上5回タップ） */
+        .hidden-back-btn {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 80px;
+            height: 80px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            z-index: 1000;
+            opacity: 0;
+        }
+        
+        /* メイン映像コンテナ */
+        .video-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background: linear-gradient(135deg, #000, #1a1a1a);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* 映像要素 */
+        #remoteVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background-color: #000;
+            transform: translateZ(0);
+            will-change: transform;
+            backface-visibility: hidden;
+        }
+        
+        /* 接続パネル */
+        .connection-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(20px);
+            color: white;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            z-index: 100;
+            max-width: 90%;
+            width: 450px;
+            border: 2px solid rgba(255, 107, 107, 0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .connection-panel.hidden {
+            display: none;
+        }
+        
+        .panel-title {
+            background: linear-gradient(135deg, #FF6B6B, #FF8E8E);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 26px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        .status {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .status.scanning {
+            background: rgba(33, 150, 243, 0.3);
+            border-color: #2196F3;
+        }
+        
+        .status.connected {
+            background: rgba(76, 175, 80, 0.3);
+            border-color: #4CAF50;
+        }
+        
+        .status.error {
+            background: rgba(244, 67, 54, 0.3);
+            border-color: #f44336;
+        }
+        
+        /* デバイス一覧 */
+        .device-list {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .device-list-title {
+            color: #FF6B6B;
+            font-weight: bold;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .device-item {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .device-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 107, 107, 0.3), transparent);
+            transition: left 0.5s;
+        }
+        
+        .device-item:hover {
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.2), rgba(255, 107, 107, 0.1));
+            border-color: #FF6B6B;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+        }
+        
+        .device-item:hover::before {
+            left: 100%;
+        }
+        
+        .device-item.connecting {
+            border-color: #ff9800;
+            background: linear-gradient(135deg, rgba(255, 152, 0, 0.2), rgba(255, 152, 0, 0.1));
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+        
+        .device-name {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #FF6B6B;
+        }
+        
+        .device-info {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.4;
+        }
+        
+        .device-quality {
+            display: inline-block;
+            background: linear-gradient(135deg, #FF6B6B, #FF8E8E);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+        
+        .no-devices {
+            color: rgba(255, 255, 255, 0.5);
+            font-style: italic;
+            text-align: center;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn-refresh { 
+            background: linear-gradient(135deg, #4CAF50, #81C784);
+            color: white;
+        }
+        
+        .btn-danger { 
+            background: linear-gradient(135deg, #f44336, #EF5350);
+            color: white;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+        
+        /* ローディング */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 20px;
+            text-align: center;
+            z-index: 50;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .loading.hidden {
+            display: none;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 107, 107, 0.3);
+            border-top: 4px solid #FF6B6B;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* 統計情報 */
+        .stats-overlay {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 12px;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            z-index: 200;
+            border: 1px solid rgba(0, 255, 0, 0.3);
+        }
+        
+        .stats-overlay.hidden {
+            display: none;
+        }
+        
+        /* エラーメッセージ */
+        .error-message {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(244, 67, 54, 0.9);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 14px;
+            z-index: 200;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            max-width: 80%;
+            text-align: center;
+        }
+        
+        .error-message.show {
+            opacity: 1;
+        }
+        
+        .instructions {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 20px;
+            line-height: 1.6;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 10px;
+        }
+        
+        .instructions strong {
+            color: #FF6B6B;
+        }
+        
+        /* レスポンシブデザイン */
+        @media (max-width: 768px) {
+            .connection-panel {
+                width: 95%;
+                padding: 20px;
+            }
+            
+            .panel-title {
+                font-size: 22px;
+            }
+            
+            .device-name {
+                font-size: 18px;
+            }
+            
+            .stats-overlay {
+                top: 10px;
+                right: 10px;
+                font-size: 10px;
+            }
+        }
+        
+        /* 接続成功時のエフェクト */
+        .success-effect {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(76, 175, 80, 0.3) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 500;
+            opacity: 0;
+            animation: successPulse 1s ease-out;
+        }
+        
+        @keyframes successPulse {
+            0% { opacity: 0; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.1); }
+            100% { opacity: 0; transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <!-- 隠しボタン（左上5回タップでホーム） -->
+    <button class="hidden-back-btn" id="hiddenBackBtn"></button>
+    
+    <!-- メイン映像表示 -->
+    <div class="video-container">
+        <video id="remoteVideo" autoplay playsinline></video>
+        
+        <!-- ローディング -->
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <div>📡 超低遅延映像を受信中...</div>
+            <div style="margin-top: 10px; font-size: 16px; color: rgba(255, 255, 255, 0.7);">
+                しばらくお待ちください
+            </div>
+        </div>
+        
+        <!-- 接続パネル -->
+        <div class="connection-panel" id="connectionPanel">
+            <div class="panel-title">🚀 超低遅延カメラ視聴</div>
+            
+            <div class="status" id="status">
+                📡 配信中デバイスを検索中...
+            </div>
+            
+            <div class="device-list" id="deviceList">
+                <div class="device-list-title">📱 配信中のデバイス</div>
+                <div class="no-devices" id="noDevicesMessage">
+                    <div>🔍 検索中...</div>
+                    <div style="margin-top: 10px; font-size: 12px;">
+                        デバイス側で配信を開始してください
+                    </div>
+                </div>
+            </div>
+            
+            <button class="btn-refresh" id="refreshBtn">🔄 再検索</button>
+            <button class="btn-danger" id="disconnectBtn">❌ 切断</button>
+            
+            <div class="instructions">
+                <strong>📋 接続方法：</strong><br>
+                1. 配信中のデバイスを選択<br>
+                2. 自動的に超低遅延接続されます<br>
+                3. 映像が全画面表示されます<br>
+                4. 左上を5回タップでホーム画面
+            </div>
+        </div>
+        
+        <!-- 統計情報 -->
+        <div class="stats-overlay hidden" id="statsOverlay">
+            <div>📊 受信統計</div>
+            <div>受信: <span id="receiveBitrate">--- kbps</span></div>
+            <div>FPS: <span id="receiveFps">--- fps</span></div>
+            <div>遅延: <span id="latency">--- ms</span></div>
+            <div>解像度: <span id="resolution">---</span></div>
+        </div>
+    </div>
+    
+    <!-- エラーメッセージ -->
+    <div class="error-message" id="errorMessage"></div>
+
+    <!-- Firebase CDN -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    
+    <!-- PeerJS CDN -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    
+    <script>
+        let peer = null;
+        let connection = null;
+        let call = null;
+        let isConnected = false;
+        let devices = {};
+        let statsInterval = null;
+        let scanTimer = null;
+        
+        // DOM要素
+        const connectionPanel = document.getElementById('connectionPanel');
+        const status = document.getElementById('status');
+        const deviceList = document.getElementById('deviceList');
+        const noDevicesMessage = document.getElementById('noDevicesMessage');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const loading = document.getElementById('loading');
+        const statsOverlay = document.getElementById('statsOverlay');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        const refreshBtn = document.getElementById('refreshBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        
+        // ログ機能
+        function log(message) {
+            console.log(`[${new Date().toLocaleTimeString()}] ${message}`);
+        }
+        
+        // 隠しボタン（左上5回タップ）
+        let tapCount = 0;
+        let tapTimer = null;
+        document.getElementById('hiddenBackBtn').addEventListener('click', function() {
+            tapCount++;
+            
+            if (tapTimer) {
+                clearTimeout(tapTimer);
+            }
+            
+            if (tapCount >= 5) {
+                goHome();
+                return;
+            }
+            
+            // 2秒以内にタップしなかった場合リセット
+            tapTimer = setTimeout(() => {
+                tapCount = 0;
+            }, 2000);
+        });
+        
+        // ホームに戻る
+        function goHome() {
+            disconnect();
+            window.location.href = 'index.html';
+        }
+        
+        // ステータス更新
+        function updateStatus(message, className = '') {
+            status.textContent = message;
+            status.className = className ? `status ${className}` : 'status';
+        }
+        
+        // エラーメッセージ表示
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+            
+            setTimeout(() => {
+                errorMessage.classList.remove('show');
+            }, 6000);
+        }
+        
+        // 成功エフェクト
+        function showSuccessEffect() {
+            const effect = document.createElement('div');
+            effect.className = 'success-effect';
+            document.body.appendChild(effect);
+            
+            setTimeout(() => {
+                effect.remove();
+            }, 1000);
+        }
+        
+        // 配信中デバイス検索
+        function scanForDevices() {
+            log('配信中デバイス検索開始');
+            
+            if (typeof firebase !== 'undefined' && firebase.database) {
+                const ref = firebase.database().ref('ultra-broadcasts');
+                
+                ref.on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    devices = {};
+                    
+                    if (data) {
+                        const now = Date.now();
+                        // 30秒以内のハートビートのみ有効とする
+                        Object.keys(data).forEach(key => {
+                            const device = data[key];
+                            if (device.active && device.timestamp && (now - device.timestamp) < 30000) {
+                                devices[key] = device;
+                            }
+                        });
+                    }
+                    
+                    updateDeviceList();
+                });
+            } else {
+                log('Firebase無効 - 代替スキャン使用');
+                updateStatus('⚠️ Firebase無効', 'error');
+                showError('Firebase接続エラー - 手動検索を使用してください');
+            }
+        }
+        
+        // デバイス一覧更新
+        function updateDeviceList() {
+            const deviceCount = Object.keys(devices).length;
+            log(`検出デバイス数: ${deviceCount}`);
+            
+            if (deviceCount === 0) {
+                noDevicesMessage.innerHTML = `
+                    <div>📱 配信中のデバイスが見つかりません</div>
+                    <div style="margin-top: 10px; font-size: 12px;">
+                        デバイス側で配信を開始してください
+                    </div>
+                `;
+                updateStatus('📡 配信中のデバイスが見つかりません');
+                return;
+            }
+            
+            updateStatus(`🚀 ${deviceCount}台の超低遅延デバイスを発見`, 'connected');
+            
+            let html = '';
+            Object.keys(devices).forEach(key => {
+                const device = devices[key];
+                const timeDiff = Date.now() - device.timestamp;
+                const timeStr = timeDiff < 10000 ? '配信中' : `${Math.floor(timeDiff / 1000)}秒前`;
+                
+                html += `
+                    <div class="device-item" onclick="connectToDevice('${device.id}', '${device.name}')">
+                        <div class="device-name">🚀 ${device.name}</div>
+                        <div class="device-info">
+                            配信ID: ${device.id}<br>
+                            品質: ${device.quality}<br>
+                            解像度: ${device.resolution} @${device.fps}fps<br>
+                            更新: ${timeStr}
+                        </div>
+                        <div class="device-quality">ULTRA LOW LATENCY</div>
+                    </div>
+                `;
+            });
+            
+            noDevicesMessage.innerHTML = html;
+        }
+        
+        // デバイスに接続
+        async function connectToDevice(deviceId, deviceName) {
+            try {
+                log(`接続開始: ${deviceName} (${deviceId})`);
+                updateStatus('🔗 超低遅延接続中...', 'scanning');
+                loading.classList.remove('hidden');
+                
+                // 接続中の視覚的フィードバック
+                const items = document.querySelectorAll('.device-item');
+                items.forEach(item => {
+                    if (item.textContent.includes(deviceName)) {
+                        item.classList.add('connecting');
+                    }
+                });
+                
+                // 超低遅延PeerJS初期化
+                const viewerId = `ultra-viewer-${Date.now()}-${Math.random().toString(36).substr(2, 8)}`;
+                
+                peer = new Peer(viewerId, {
+                    debug: 1,
+                    config: {
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:stun1.l.google.com:19302' },
+                            { urls: 'stun:stun2.l.google.com:19302' }
+                        ],
+                        iceTransportPolicy: 'all',
+                        bundlePolicy: 'max-compat',
+                        rtcpMuxPolicy: 'require',
+                        iceCandidatePoolSize: 10,
+                        // 低遅延に重要な設定
+                        sdpSemantics: 'unified-plan'
+                    }
+                });
+                
+                peer.on('open', (id) => {
+                    log(`Viewer ID: ${id}`);
+                    
+                    // 配信者に接続
+                    connection = peer.connect(deviceId);
+                    
+                    connection.on('open', () => {
+                        log('データ接続確立');
+                        updateStatus('📡 データ接続完了', 'connected');
+                        
+                        // 音声・映像通話開始
+                        call = peer.call(deviceId, new MediaStream());
+                        
+                        call.on('stream', (remoteStream) => {
+                            log('超低遅延映像ストリーム受信');
+                            
+                            // 超低遅延映像表示設定
+                            remoteVideo.srcObject = remoteStream;
+                            remoteVideo.muted = true;
+                            remoteVideo.autoplay = true;
+                            remoteVideo.playsInline = true;
+                            remoteVideo.setAttribute('playsinline', 'true');
+                            
+                            // GPU加速とパフォーマンス最適化
+                            remoteVideo.style.transform = 'translateZ(0)';
+                            remoteVideo.style.willChange = 'transform';
+                            remoteVideo.style.backfaceVisibility = 'hidden';
+                            
+                            // 全画面表示
+                            connectionPanel.classList.add('hidden');
+                            loading.classList.add('hidden');
+                            statsOverlay.classList.remove('hidden');
+                            isConnected = true;
+                            
+                            showSuccessEffect();
+                            updateStatus('🔴 超低遅延映像受信中', 'connected');
+                            
+                            // 統計情報開始
+                            startStats();
+                            
+                            // 映像情報表示
+                            const videoTrack = remoteStream.getVideoTracks()[0];
+                            if (videoTrack) {
+                                const settings = videoTrack.getSettings();
+                                document.getElementById('resolution').textContent = 
+                                    `${settings.width}x${settings.height}`;
+                            }
+                        });
+                        
+                        call.on('close', () => {
+                            log('通話終了');
+                            disconnect();
+                        });
+                        
+                        call.on('error', (error) => {
+                            log(`通話エラー: ${error.message}`);
+                            showError('映像の受信に失敗しました');
+                            disconnect();
+                        });
+                        
+                        // 超低遅延受信設定
+                        setupUltraLowLatencyReceiver(call);
+                    });
+                    
+                    connection.on('data', (data) => {
+                        log(`受信データ: ${JSON.stringify(data)}`);
+                    });
+                    
+                    connection.on('close', () => {
+                        log('データ接続終了');
+                        disconnect();
+                    });
+                    
+                    connection.on('error', (error) => {
+                        log(`接続エラー: ${error.message}`);
+                        showError('配信者への接続に失敗しました');
+                        updateStatus('❌ 接続失敗', 'error');
+                        loading.classList.add('hidden');
+                        removeConnectingState();
+                    });
+                });
+                
+                peer.on('error', (error) => {
+                    log(`Peer エラー: ${error.type} - ${error.message}`);
+                    let errorMsg = '接続エラーが発生しました';
+                    
+                    if (error.type === 'peer-unavailable') {
+                        errorMsg = `${deviceName}が見つかりません`;
+                    } else if (error.type === 'network') {
+                        errorMsg = 'ネットワークエラーです';
+                    }
+                    
+                    showError(errorMsg);
+                    updateStatus('❌ 接続エラー', 'error');
+                    loading.classList.add('hidden');
+                    removeConnectingState();
+                });
+                
+                // 接続タイムアウト
+                setTimeout(() => {
+                    if (!isConnected && peer) {
+                        showError('接続がタイムアウトしました');
+                        disconnect();
+                    }
+                }, 20000);
+                
+            } catch (error) {
+                log(`接続開始エラー: ${error.message}`);
+                showError('接続を開始できませんでした');
+                updateStatus('❌ 接続エラー', 'error');
+                loading.classList.add('hidden');
+                removeConnectingState();
+            }
+        }
+        
+        // 超低遅延受信設定
+        async function setupUltraLowLatencyReceiver(call) {
+            try {
+                const pc = call.peerConnection;
+                const receivers = pc.getReceivers();
+                
+                receivers.forEach(receiver => {
+                    if (receiver.track && receiver.track.kind === 'video') {
+                        log('ビデオ受信者の超低遅延設定');
+                        
+                        // トランシーバーの設定
+                        const transceiver = pc.getTransceivers().find(t => t.receiver === receiver);
+                        if (transceiver) {
+                            transceiver.direction = 'recvonly';
+                            log('受信専用モード設定完了');
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                log(`超低遅延受信設定エラー: ${error.message}`);
+            }
+        }
+        
+        // 統計情報開始
+        function startStats() {
+            if (statsInterval) {
+                clearInterval(statsInterval);
+            }
+            
+            statsInterval = setInterval(async () => {
+                if (call && call.peerConnection) {
+                    try {
+                        const stats = await call.peerConnection.getStats();
+                        
+                        let receiveBitrate = 0;
+                        let receiveFps = 0;
+                        let rtt = 0;
+                        
+                        stats.forEach(report => {
+                            if (report.type === 'inbound-rtp' && report.mediaType === 'video') {
+                                if (report.bytesReceived) {
+                                    receiveBitrate = Math.round((report.bytesReceived * 8) / 1000);
+                                }
+                                if (report.framesPerSecond) {
+                                    receiveFps = Math.round(report.framesPerSecond);
+                                }
+                            }
+                            if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                                if (report.currentRoundTripTime) {
+                                    rtt = Math.round(report.currentRoundTripTime * 1000);
+                                }
+                            }
+                        });
+                        
+                        document.getElementById('receiveBitrate').textContent = receiveBitrate + ' kbps';
+                        document.getElementById('receiveFps').textContent = receiveFps + ' fps';
+                        document.getElementById('latency').textContent = rtt + ' ms';
+                        
+                    } catch (error) {
+                        log(`統計情報エラー: ${error.message}`);
+                    }
+                }
+            }, 1000);
+        }
+        
+        // 接続中状態削除
+        function removeConnectingState() {
+            const items = document.querySelectorAll('.device-item');
+            items.forEach(item => item.classList.remove('connecting'));
+        }
+        
+        // 切断
+        function disconnect() {
+            if (call) {
+                call.close();
+                call = null;
+            }
+            
+            if (connection) {
+                connection.close();
+                connection = null;
+            }
+            
+            if (peer) {
+                peer.destroy();
+                peer = null;
+            }
+            
+            if (remoteVideo.srcObject) {
+                remoteVideo.srcObject = null;
+            }
+            
+            if (statsInterval) {
+                clearInterval(statsInterval);
+                statsInterval = null;
+            }
+            
+            isConnected = false;
+            
+            connectionPanel.classList.remove('hidden');
+            loading.classList.add('hidden');
+            statsOverlay.classList.add('hidden');
+            
+            removeConnectingState();
+            
+            updateStatus('📡 配信中デバイスを検索中...', 'scanning');
+            
+            // 再検索
+            scanForDevices();
+        }
+        
+        // 再検索
+        function refresh() {
+            log('手動再検索');
+            updateStatus('📡 配信中デバイスを検索中...', 'scanning');
+            devices = {};
+            updateDeviceList();
+            scanForDevices();
+        }
+        
+        // グローバル関数として定義
+        window.connectToDevice = connectToDevice;
+        
+        // イベントリスナー
+        refreshBtn.addEventListener('click', refresh);
+        disconnectBtn.addEventListener('click', disconnect);
+        
+        // 全画面表示時のキーボードイベント
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isConnected) {
+                disconnect();
+            }
+        });
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            updateStatus('📡 配信中デバイスを検索中...', 'scanning');
+            scanForDevices();
+            log('超低遅延カメラ視聴システム初期化完了');
+        });
+        
+        // ページ離脱時のクリーンアップ
+        window.addEventListener('beforeunload', () => {
+            disconnect();
+        });
+        
+        // エラーハンドリング
+        window.addEventListener('error', (event) => {
+            log(`グローバルエラー: ${event.error}`);
+            showError('予期しないエラーが発生しました');
+        });
+    </script>
+</body>
+</html> 
