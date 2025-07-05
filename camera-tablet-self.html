@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📷 カメラタブレット自体</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background-color: #000;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        /* 隠しボタン（左上5回タップ） */
+        .hidden-back-btn {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100px;
+            height: 100px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            z-index: 1000;
+            opacity: 0;
+        }
+        
+        /* メイン映像コンテナ */
+        .camera-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* カメラ映像要素 */
+        #cameraVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background-color: #000;
+            transform: translateZ(0);
+            will-change: transform;
+            backface-visibility: hidden;
+        }
+        
+        /* 初期化中の表示 */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #9C27B0, #673AB7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 50;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .camera-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+        
+        .loading-text {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .loading-subtitle {
+            font-size: 16px;
+            opacity: 0.8;
+            text-align: center;
+            line-height: 1.5;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        
+        /* エラーメッセージ */
+        .error-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 100;
+            display: none;
+        }
+        
+        .error-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+        
+        .error-text {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .error-subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+            text-align: center;
+            line-height: 1.5;
+            margin-bottom: 30px;
+        }
+        
+        .retry-button {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .retry-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+        
+        /* タップ回数インジケーター（デバッグ用） */
+        .tap-indicator {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 60px;
+            height: 60px;
+            background: rgba(156, 39, 176, 0.3);
+            border: 2px solid #9C27B0;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 999;
+        }
+        
+        .tap-indicator.show {
+            opacity: 1;
+        }
+        
+        /* フルスクリーン最適化 */
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        /* モバイル最適化 */
+        @media screen and (orientation: portrait) {
+            #cameraVideo {
+                object-fit: cover;
+            }
+        }
+        
+        @media screen and (orientation: landscape) {
+            #cameraVideo {
+                object-fit: cover;
+            }
+        }
+        
+        /* タッチイベント最適化 */
+        * {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- 隠しボタン（左上5回タップでホーム） -->
+    <button class="hidden-back-btn" id="hiddenBackBtn"></button>
+    
+    <!-- タップ回数インジケーター -->
+    <div class="tap-indicator" id="tapIndicator">5</div>
+    
+    <!-- メインカメラ表示 -->
+    <div class="camera-container">
+        <!-- カメラ映像 -->
+        <video id="cameraVideo" autoplay muted playsinline></video>
+        
+        <!-- 初期化中オーバーレイ -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="camera-icon">📷</div>
+            <div class="loading-text">カメラ起動中...</div>
+            <div class="loading-subtitle">
+                タブレットをカメラとして使用します<br>
+                しばらくお待ちください
+            </div>
+        </div>
+        
+        <!-- エラーオーバーレイ -->
+        <div class="error-overlay" id="errorOverlay">
+            <div class="error-icon">❌</div>
+            <div class="error-text">カメラエラー</div>
+            <div class="error-subtitle" id="errorMessage">
+                カメラにアクセスできませんでした
+            </div>
+            <button class="retry-button" onclick="startCamera()">🔄 再試行</button>
+        </div>
+    </div>
+    
+    <script>
+        let cameraStream = null;
+        let tapCount = 0;
+        let tapTimer = null;
+        
+        // DOM要素
+        const cameraVideo = document.getElementById('cameraVideo');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const errorOverlay = document.getElementById('errorOverlay');
+        const errorMessage = document.getElementById('errorMessage');
+        const tapIndicator = document.getElementById('tapIndicator');
+        
+        // ログ機能
+        function log(message) {
+            console.log(`[${new Date().toLocaleTimeString()}] ${message}`);
+        }
+        
+        // 隠しボタン（左上5回タップ）
+        document.getElementById('hiddenBackBtn').addEventListener('click', function() {
+            tapCount++;
+            
+            // タップインジケーター更新
+            const remaining = 5 - tapCount;
+            tapIndicator.textContent = remaining;
+            tapIndicator.classList.add('show');
+            
+            if (tapTimer) {
+                clearTimeout(tapTimer);
+            }
+            
+            if (tapCount >= 5) {
+                log('5回タップ完了 - ホームに戻る');
+                goHome();
+                return;
+            }
+            
+            // 3秒以内にタップしなかった場合リセット
+            tapTimer = setTimeout(() => {
+                tapCount = 0;
+                tapIndicator.textContent = '5';
+                tapIndicator.classList.remove('show');
+            }, 3000);
+            
+            // 1秒後にインジケーターを隠す
+            setTimeout(() => {
+                if (tapCount < 5) {
+                    tapIndicator.classList.remove('show');
+                }
+            }, 1000);
+        });
+        
+        // ホームに戻る
+        function goHome() {
+            stopCamera();
+            window.location.href = 'index.html';
+        }
+        
+        // カメラ開始
+        async function startCamera() {
+            try {
+                log('カメラ開始');
+                
+                // エラーオーバーレイを隠す
+                errorOverlay.style.display = 'none';
+                loadingOverlay.classList.remove('hidden');
+                
+                // 既存のストリームがあれば停止
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(track => track.stop());
+                }
+                
+                // カメラの制約設定
+                const constraints = {
+                    video: {
+                        width: { ideal: 1920, max: 4096 },
+                        height: { ideal: 1080, max: 2160 },
+                        frameRate: { ideal: 30, max: 60 },
+                        facingMode: 'environment' // 背面カメラを優先
+                    },
+                    audio: false // 音声は不要
+                };
+                
+                // カメラストリーム取得
+                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                // ビデオ要素に設定
+                cameraVideo.srcObject = cameraStream;
+                
+                // GPU加速とパフォーマンス最適化
+                cameraVideo.style.transform = 'translateZ(0)';
+                cameraVideo.style.willChange = 'transform';
+                cameraVideo.style.backfaceVisibility = 'hidden';
+                
+                // ビデオ再生開始を待つ
+                cameraVideo.onloadedmetadata = () => {
+                    log('カメラメタデータ読み込み完了');
+                    cameraVideo.play().then(() => {
+                        log('カメラ再生開始');
+                        
+                        // ローディングオーバーレイを隠す
+                        setTimeout(() => {
+                            loadingOverlay.classList.add('hidden');
+                        }, 500);
+                        
+                        // カメラ情報をログ出力
+                        const videoTrack = cameraStream.getVideoTracks()[0];
+                        if (videoTrack) {
+                            const settings = videoTrack.getSettings();
+                            log(`カメラ設定: ${settings.width}x${settings.height} @${settings.frameRate}fps`);
+                            log(`使用カメラ: ${settings.facingMode || 'unknown'}`);
+                        }
+                        
+                    }).catch(error => {
+                        log(`ビデオ再生エラー: ${error.message}`);
+                        showError('ビデオの再生に失敗しました', error.message);
+                    });
+                };
+                
+                cameraVideo.onerror = (error) => {
+                    log(`ビデオエラー: ${error}`);
+                    showError('ビデオエラーが発生しました', 'ビデオの表示中に問題が発生しました');
+                };
+                
+            } catch (error) {
+                log(`カメラアクセスエラー: ${error.message}`);
+                
+                let userMessage = 'カメラにアクセスできませんでした';
+                let details = error.message;
+                
+                if (error.name === 'NotAllowedError') {
+                    userMessage = 'カメラへのアクセスが拒否されました';
+                    details = 'ブラウザの設定でカメラのアクセスを許可してください';
+                } else if (error.name === 'NotFoundError') {
+                    userMessage = 'カメラが見つかりませんでした';
+                    details = 'カメラが接続されているか確認してください';
+                } else if (error.name === 'NotReadableError') {
+                    userMessage = 'カメラが使用中です';
+                    details = '他のアプリケーションがカメラを使用している可能性があります';
+                }
+                
+                showError(userMessage, details);
+            }
+        }
+        
+        // エラー表示
+        function showError(message, details) {
+            loadingOverlay.classList.add('hidden');
+            errorMessage.innerHTML = `${message}<br><br><small>${details}</small>`;
+            errorOverlay.style.display = 'flex';
+        }
+        
+        // カメラ停止
+        function stopCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => {
+                    track.stop();
+                    log(`カメラトラック停止: ${track.kind}`);
+                });
+                cameraStream = null;
+                cameraVideo.srcObject = null;
+            }
+        }
+        
+        // フルスクリーン要求
+        function requestFullscreen() {
+            const element = document.documentElement;
+            
+            if (element.requestFullscreen) {
+                element.requestFullscreen();
+            } else if (element.webkitRequestFullscreen) {
+                element.webkitRequestFullscreen();
+            } else if (element.mozRequestFullScreen) {
+                element.mozRequestFullScreen();
+            } else if (element.msRequestFullscreen) {
+                element.msRequestFullscreen();
+            }
+        }
+        
+        // 画面の向き変更対応
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                log('画面向き変更検出');
+                // 必要に応じてカメラを再起動
+                if (cameraStream) {
+                    // 解像度の再調整などを行う場合はここに実装
+                }
+            }, 500);
+        });
+        
+        // ページの可視性変更対応
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                log('ページが非表示になりました');
+                // バックグラウンドでもカメラを継続
+            } else {
+                log('ページが表示されました');
+                // 必要に応じてカメラを再開
+                if (!cameraStream) {
+                    startCamera();
+                }
+            }
+        });
+        
+        // ページ離脱時のクリーンアップ
+        window.addEventListener('beforeunload', () => {
+            log('ページ離脱 - カメラ停止');
+            stopCamera();
+        });
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            log('カメラタブレット自体システム初期化');
+            
+            // フルスクリーンモードを試行
+            setTimeout(() => {
+                requestFullscreen();
+            }, 1000);
+            
+            // カメラ自動開始
+            startCamera();
+        });
+        
+        // エラーハンドリング
+        window.addEventListener('error', (event) => {
+            log(`グローバルエラー: ${event.error}`);
+            console.error('エラー詳細:', event.error);
+        });
+        
+        // モバイル端末での画面スリープ防止（実験的）
+        let wakeLock = null;
+        
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    log('画面スリープ防止が有効になりました');
+                    
+                    wakeLock.addEventListener('release', () => {
+                        log('画面スリープ防止が解除されました');
+                    });
+                }
+            } catch (error) {
+                log(`画面スリープ防止エラー: ${error.message}`);
+            }
+        }
+        
+        // 画面スリープ防止を試行
+        requestWakeLock();
+        
+        log('カメラタブレット自体システム準備完了');
+    </script>
+</body>
+</html> 
