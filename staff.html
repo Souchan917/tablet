@@ -90,11 +90,38 @@
             transform: scale(1.05);
         }
 
-        .team-label.selected {
-            background: #4CAF50;
-            color: white;
-            box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
-        }
+                        .team-label.selected {
+                    background: #4CAF50;
+                    color: white;
+                    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+                }
+
+                .camera-button {
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    background: linear-gradient(135deg, #9C27B0, #673AB7);
+                    color: white;
+                    border: none;
+                    padding: 15px 30px;
+                    border-radius: 25px;
+                    font-size: 16px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+                    z-index: 1000;
+                    display: none;
+                }
+
+                .camera-button:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 20px rgba(156, 39, 176, 0.3);
+                }
+
+                .camera-button.show {
+                    display: block;
+                }
 
         .step-label {
             background: #ffcc00;
@@ -323,6 +350,11 @@
         </div>
     </div>
 
+    <!-- カメラ画面に遷移するボタン -->
+    <button class="camera-button" id="cameraButton" onclick="openCameraForSelectedTeam()">
+        📷 選択チームのカメラ表示
+    </button>
+
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
     <script src="js/firebase-config.js"></script>
@@ -408,6 +440,8 @@
         // 選択されたチームの視覚的表示を更新
         function updateSelectedTeamVisual() {
             const teamLabels = document.querySelectorAll('.team-label');
+            const cameraButton = document.getElementById('cameraButton');
+            
             teamLabels.forEach((label, index) => {
                 const teamId = index + 1;
                 if (teamId === currentSelectedTeamId) {
@@ -416,6 +450,14 @@
                     label.classList.remove('selected');
                 }
             });
+            
+            // カメラボタンの表示・非表示
+            if (currentSelectedTeamId) {
+                cameraButton.classList.add('show');
+                cameraButton.textContent = `📷 チーム${currentSelectedTeamId}のカメラ表示`;
+            } else {
+                cameraButton.classList.remove('show');
+            }
         }
 
         // 現在選択されているチームの情報を更新
@@ -594,6 +636,19 @@
         // 戻るボタン
         function goBack() {
             window.location.href = 'index.html';
+        }
+
+        // 選択されたチームのカメラ画面を開く
+        function openCameraForSelectedTeam() {
+            if (!currentSelectedTeamId) {
+                alert('チームを選択してください');
+                return;
+            }
+            
+            console.log(`チーム${currentSelectedTeamId}のカメラ画面を開きます`);
+            
+            // カメラタブレット画面に遷移
+            window.location.href = `camera-tablet-self.html?team=${currentSelectedTeamId}`;
         }
 
         // 初期化

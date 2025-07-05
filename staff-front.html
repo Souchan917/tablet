@@ -515,6 +515,9 @@
             if (currentSelectedTeamId === teamId) {
                 updateSelectedTeamInfo();
             }
+            
+            // カメラタブレット制御情報をFirebaseに送信
+            updateCameraTabletControl(teamId);
         }
 
         // 現在のステップ（次にクリアすべきステップ）を取得
@@ -591,6 +594,33 @@
             document.getElementById('completedTeams').textContent = completedTeams;
         }
 
+        // カメラタブレット制御情報をFirebaseに送信
+        async function updateCameraTabletControl(teamId) {
+            try {
+                // 現在のステップを取得
+                const currentStep = getCurrentStep(teamId);
+                
+                // camera-tablet コレクションに保存
+                await db.collection('camera-tablet').doc(`team${teamId}`).set({
+                    step: currentStep,
+                    progress: teamProgress[teamId],
+                    lastUpdated: new Date()
+                });
+                
+                console.log(`カメラタブレット制御更新: Team${teamId} Step${currentStep}`);
+                
+            } catch (error) {
+                console.error('カメラタブレット制御更新エラー:', error);
+            }
+        }
+
+        // 全チームのカメラタブレット制御情報を更新
+        async function updateAllCameraTabletControls() {
+            for (let teamId = 1; teamId <= totalTeams; teamId++) {
+                await updateCameraTabletControl(teamId);
+            }
+        }
+
         // 戻るボタン
         function goBack() {
             window.location.href = 'index.html';
@@ -606,6 +636,9 @@
             setTimeout(async () => {
                 await loadProgressFromFirebase();
                 await loadSelectedTeamFromFirebase();
+                
+                // カメラタブレット制御情報を初期化
+                await updateAllCameraTabletControls();
             }, 1000);
         });
     </script>

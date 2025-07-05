@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>📷 カメラタブレット自体</title>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    
     <style>
         * {
             margin: 0;
@@ -53,6 +59,130 @@
             transform: translateZ(0);
             will-change: transform;
             backface-visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        /* 遅延効果（視覚的表現） */
+        #cameraVideo.delayed {
+            animation: delayEffect 1s ease-in-out infinite;
+        }
+        
+        @keyframes delayEffect {
+            0% { 
+                filter: blur(0px) brightness(1);
+                transform: translateZ(0) scale(1);
+            }
+            50% { 
+                filter: blur(1px) brightness(0.95);
+                transform: translateZ(0) scale(0.99);
+            }
+            100% { 
+                filter: blur(0px) brightness(1);
+                transform: translateZ(0) scale(1);
+            }
+        }
+        
+        /* カメラ選択画面 */
+        .camera-selection {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #9C27B0, #673AB7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 100;
+            padding: 20px;
+        }
+        
+        .camera-selection.hidden {
+            display: none;
+        }
+        
+        .selection-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .selection-subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+            text-align: center;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+        
+        .camera-list {
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 20px;
+        }
+        
+        .camera-item {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            margin: 10px 0;
+            padding: 20px;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            text-align: center;
+        }
+        
+        .camera-item:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .camera-item.selected {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: #ffffff;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+        
+        .camera-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .camera-info {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        .start-button {
+            background: linear-gradient(135deg, #ffffff, #f0f0f0);
+            color: #9C27B0;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            margin-top: 20px;
+        }
+        
+        .start-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .start-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
         }
         
         /* 初期化中の表示 */
@@ -215,6 +345,372 @@
             -ms-user-select: none;
             user-select: none;
         }
+        
+        /* ノイズオーバーレイ（車両番号と同じ） */
+        .noise-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.05) 0%, transparent 50%),
+                linear-gradient(45deg, rgba(255, 255, 255, 0.02) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(255, 255, 255, 0.02) 25%, transparent 25%);
+            background-size: 
+                200px 200px,
+                150px 150px,
+                100px 100px,
+                50px 50px,
+                50px 50px;
+            z-index: 40;
+            animation: noiseAnimation 0.1s linear infinite;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .noise-overlay.active {
+            opacity: 1;
+        }
+        
+        @keyframes noiseAnimation {
+            0% { 
+                background-position: 0px 0px, 0px 0px, 0px 0px, 0px 0px, 0px 0px;
+                filter: hue-rotate(0deg) brightness(1);
+            }
+            10% { 
+                background-position: -5px 5px, 3px -3px, 2px 2px, -1px 1px, 1px -1px;
+                filter: hue-rotate(36deg) brightness(1.2);
+            }
+            20% { 
+                background-position: 5px -10px, -6px 6px, -4px -4px, 2px -2px, -2px 2px;
+                filter: hue-rotate(72deg) brightness(0.8);
+            }
+            30% { 
+                background-position: -10px 0px, 9px 0px, 6px -6px, -3px 0px, 3px 3px;
+                filter: hue-rotate(108deg) brightness(1.1);
+            }
+            40% { 
+                background-position: 0px 10px, -12px -12px, 8px 8px, 4px 4px, -4px -4px;
+                filter: hue-rotate(144deg) brightness(0.9);
+            }
+            50% { 
+                background-position: 10px 5px, 0px -15px, -10px 10px, 5px -5px, -5px 5px;
+                filter: hue-rotate(180deg) brightness(1.3);
+            }
+            60% { 
+                background-position: -15px -10px, 18px 18px, 12px -12px, -6px 6px, 6px -6px;
+                filter: hue-rotate(216deg) brightness(0.7);
+            }
+            70% { 
+                background-position: 5px 15px, -21px -21px, 14px 14px, 7px 7px, -7px -7px;
+                filter: hue-rotate(252deg) brightness(1.4);
+            }
+            80% { 
+                background-position: 20px -5px, 0px 24px, -16px 16px, 8px -8px, -8px 8px;
+                filter: hue-rotate(288deg) brightness(0.6);
+            }
+            90% { 
+                background-position: -25px 25px, 27px -27px, 18px -18px, -9px 9px, 9px -9px;
+                filter: hue-rotate(324deg) brightness(1.5);
+            }
+            100% { 
+                background-position: 0px 0px, 0px 0px, 0px 0px, 0px 0px, 0px 0px;
+                filter: hue-rotate(360deg) brightness(1);
+            }
+        }
+        
+        /* チーム選択パネル */
+        .team-selection {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #9C27B0, #673AB7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 200;
+            padding: 20px;
+        }
+        
+        .team-selection.hidden {
+            display: none;
+        }
+        
+        .team-selection-title {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            max-width: 600px;
+            width: 100%;
+            margin-bottom: 30px;
+        }
+        
+        .team-btn {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 2px solid transparent;
+            padding: 20px;
+            border-radius: 15px;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .team-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .team-btn.selected {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: #ffffff;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+        
+        .start-camera-btn {
+            background: linear-gradient(135deg, #ffffff, #f0f0f0);
+            color: #9C27B0;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .start-camera-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .start-camera-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* メイン映像コンテナ */
+        .camera-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .camera-container.hidden {
+            display: none;
+        }
+        
+        /* カメラ映像要素 */
+        #cameraVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background-color: #000;
+            transform: translateZ(0);
+            will-change: transform;
+            backface-visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        /* 遅延映像用のキャンバス */
+        #delayedCanvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background-color: #000;
+            display: none;
+        }
+        
+        /* ノイズオーバーレイ（車両番号と同じ） */
+        .noise-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.05) 0%, transparent 50%),
+                linear-gradient(45deg, rgba(255, 255, 255, 0.02) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(255, 255, 255, 0.02) 25%, transparent 25%);
+            background-size: 
+                200px 200px,
+                150px 150px,
+                100px 100px,
+                50px 50px,
+                50px 50px;
+            z-index: 40;
+            animation: noiseAnimation 0.1s linear infinite;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .noise-overlay.active {
+            opacity: 1;
+        }
+        
+        @keyframes noiseAnimation {
+            0% { 
+                background-position: 0px 0px, 0px 0px, 0px 0px, 0px 0px, 0px 0px;
+                filter: hue-rotate(0deg) brightness(1);
+            }
+            10% { 
+                background-position: -5px 5px, 3px -3px, 2px 2px, -1px 1px, 1px -1px;
+                filter: hue-rotate(36deg) brightness(1.2);
+            }
+            20% { 
+                background-position: 5px -10px, -6px 6px, -4px -4px, 2px -2px, -2px 2px;
+                filter: hue-rotate(72deg) brightness(0.8);
+            }
+            30% { 
+                background-position: -10px 0px, 9px 0px, 6px -6px, -3px 0px, 3px 3px;
+                filter: hue-rotate(108deg) brightness(1.1);
+            }
+            40% { 
+                background-position: 0px 10px, -12px -12px, 8px 8px, 4px 4px, -4px -4px;
+                filter: hue-rotate(144deg) brightness(0.9);
+            }
+            50% { 
+                background-position: 10px 5px, 0px -15px, -10px 10px, 5px -5px, -5px 5px;
+                filter: hue-rotate(180deg) brightness(1.3);
+            }
+            60% { 
+                background-position: -15px -10px, 18px 18px, 12px -12px, -6px 6px, 6px -6px;
+                filter: hue-rotate(216deg) brightness(0.7);
+            }
+            70% { 
+                background-position: 5px 15px, -21px -21px, 14px 14px, 7px 7px, -7px -7px;
+                filter: hue-rotate(252deg) brightness(1.4);
+            }
+            80% { 
+                background-position: 20px -5px, 0px 24px, -16px 16px, 8px -8px, -8px 8px;
+                filter: hue-rotate(288deg) brightness(0.6);
+            }
+            90% { 
+                background-position: -25px 25px, 27px -27px, 18px -18px, -9px 9px, 9px -9px;
+                filter: hue-rotate(324deg) brightness(1.5);
+            }
+            100% { 
+                background-position: 0px 0px, 0px 0px, 0px 0px, 0px 0px, 0px 0px;
+                filter: hue-rotate(360deg) brightness(1);
+            }
+        }
+        
+        /* プログレス表示 */
+        .progress-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 50;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+            display: none;
+        }
+        
+        .progress-indicator.show {
+            display: block;
+        }
+        
+        /* タップ回数インジケーター */
+        .tap-indicator {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 60px;
+            height: 60px;
+            background: rgba(156, 39, 176, 0.3);
+            border: 2px solid #9C27B0;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 999;
+        }
+        
+        .tap-indicator.show {
+            opacity: 1;
+        }
+        
+        /* フルスクリーン最適化 */
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        /* タッチイベント最適化 */
+        * {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        /* エラーメッセージ */
+        .error-message {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(244, 67, 54, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 100;
+            display: none;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -224,47 +720,219 @@
     <!-- タップ回数インジケーター -->
     <div class="tap-indicator" id="tapIndicator">5</div>
     
-    <!-- メインカメラ表示 -->
-    <div class="camera-container">
-        <!-- カメラ映像 -->
-        <video id="cameraVideo" autoplay muted playsinline></video>
-        
-        <!-- 初期化中オーバーレイ -->
-        <div class="loading-overlay" id="loadingOverlay">
-            <div class="camera-icon">📷</div>
-            <div class="loading-text">カメラ起動中...</div>
-            <div class="loading-subtitle">
-                タブレットをカメラとして使用します<br>
-                しばらくお待ちください
-            </div>
+    <!-- チーム選択画面 -->
+    <div class="team-selection" id="teamSelection">
+        <div class="team-selection-title">チームを選択してください</div>
+        <div class="team-grid" id="teamGrid">
+            <!-- JavaScript で生成 -->
         </div>
-        
-        <!-- エラーオーバーレイ -->
-        <div class="error-overlay" id="errorOverlay">
-            <div class="error-icon">❌</div>
-            <div class="error-text">カメラエラー</div>
-            <div class="error-subtitle" id="errorMessage">
-                カメラにアクセスできませんでした
-            </div>
-            <button class="retry-button" onclick="startCamera()">🔄 再試行</button>
-        </div>
+        <button class="start-camera-btn" id="startCameraBtn" disabled>カメラを開始</button>
     </div>
     
+    <!-- カメラ映像表示 -->
+    <div class="camera-container hidden" id="cameraContainer">
+        <video id="cameraVideo" autoplay playsinline muted></video>
+        <canvas id="delayedCanvas"></canvas>
+        <div class="noise-overlay" id="noiseOverlay"></div>
+    </div>
+    
+    <!-- プログレス表示 -->
+    <div class="progress-indicator" id="progressIndicator">
+        <span id="teamName">チーム1</span> - ステップ <span id="currentStep">0</span>
+    </div>
+    
+    <!-- エラーメッセージ -->
+    <div class="error-message" id="errorMessage"></div>
+
     <script>
         let cameraStream = null;
         let tapCount = 0;
         let tapTimer = null;
+        let availableCameras = [];
+        let selectedCameraId = null;
+        
+        // スタッフ制御関連
+        let db = null;
+        let currentTeamNumber = null;
+        let currentStep = 0;
+        let firebaseListener = null;
         
         // DOM要素
         const cameraVideo = document.getElementById('cameraVideo');
+        const noiseOverlay = document.getElementById('noiseOverlay');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const teamSelection = document.getElementById('teamSelection');
+        const teamNumberInput = document.getElementById('teamNumberInput');
+        const teamConfirmBtn = document.getElementById('teamConfirmBtn');
+        const cameraSelection = document.getElementById('cameraSelection');
+        const cameraList = document.getElementById('cameraList');
+        const startButton = document.getElementById('startButton');
         const loadingOverlay = document.getElementById('loadingOverlay');
         const errorOverlay = document.getElementById('errorOverlay');
         const errorMessage = document.getElementById('errorMessage');
         const tapIndicator = document.getElementById('tapIndicator');
+        const teamGrid = document.getElementById('teamGrid');
+        const startCameraBtn = document.getElementById('startCameraBtn');
+        const cameraContainer = document.getElementById('cameraContainer');
+        const progressIndicator = document.getElementById('progressIndicator');
+        const teamName = document.getElementById('teamName');
+        const currentStepElement = document.getElementById('currentStep');
         
         // ログ機能
         function log(message) {
             console.log(`[${new Date().toLocaleTimeString()}] ${message}`);
+        }
+        
+        // Firebase初期化
+        function initializeFirebase() {
+            try {
+                if (typeof firebase !== 'undefined' && firebase.apps.length === 0) {
+                    firebase.initializeApp(firebaseConfig);
+                    log('Firebase初期化成功');
+                }
+                
+                db = firebase.firestore();
+                log('Firestore接続成功');
+                
+                return true;
+            } catch (error) {
+                log(`Firebase初期化エラー: ${error.message}`);
+                return false;
+            }
+        }
+        
+        // チーム番号設定
+        function setTeamNumber() {
+            const teamNumber = parseInt(teamNumberInput.value);
+            
+            if (isNaN(teamNumber) || teamNumber < 1 || teamNumber > 10) {
+                alert('チーム番号は1-10の範囲で入力してください');
+                return;
+            }
+            
+            currentTeamNumber = teamNumber;
+            teamSelection.classList.remove('show');
+            
+            // ローカルストレージに保存
+            localStorage.setItem('cameraTabletTeamNumber', teamNumber);
+            
+            log(`チーム番号設定: ${teamNumber}`);
+            
+            // Firebase監視開始
+            startFirebaseListener();
+        }
+        
+        // Firebase監視開始
+        function startFirebaseListener() {
+            if (!db || !currentTeamNumber) {
+                log('Firebase監視開始失敗: db or teamNumber is null');
+                return;
+            }
+            
+            try {
+                // 前回のリスナーを削除
+                if (firebaseListener) {
+                    firebaseListener();
+                }
+                
+                // camera-tablet コレクションを監視
+                const docRef = db.collection('camera-tablet').doc(`team${currentTeamNumber}`);
+                
+                firebaseListener = docRef.onSnapshot((doc) => {
+                    if (doc.exists) {
+                        const data = doc.data();
+                        log(`Firebase更新受信: Team${currentTeamNumber} Step${data.step}`);
+                        
+                        updateStepStatus(data.step);
+                    } else {
+                        log(`Firebase文書が存在しません: team${currentTeamNumber}`);
+                        // デフォルトステップを設定
+                        updateStepStatus(0);
+                    }
+                }, (error) => {
+                    log(`Firebase監視エラー: ${error.message}`);
+                });
+                
+                log(`Firebase監視開始: team${currentTeamNumber}`);
+                
+            } catch (error) {
+                log(`Firebase監視開始エラー: ${error.message}`);
+            }
+        }
+        
+        // ステップ状態更新
+        function updateStepStatus(step) {
+            currentStep = step;
+            
+            log(`ステップ更新: ${step}`);
+            
+            // 状態表示更新
+            updateStatusIndicator(step);
+            
+            // カメラ表示制御
+            updateCameraDisplay(step);
+        }
+        
+        // 状態表示更新
+        function updateStatusIndicator(step) {
+            statusIndicator.classList.remove('step0to3', 'step4to5', 'step6plus');
+            
+            let statusText = '';
+            let statusClass = '';
+            
+            if (step < 4) {
+                statusText = `🚫 チーム${currentTeamNumber} - ノイズ中`;
+                statusClass = 'step0to3';
+            } else if (step < 6) {
+                statusText = `📷 チーム${currentTeamNumber} - 通常撮影`;
+                statusClass = 'step4to5';
+            } else {
+                statusText = `⏰ チーム${currentTeamNumber} - 遅延撮影`;
+                statusClass = 'step6plus';
+            }
+            
+            statusIndicator.textContent = statusText;
+            statusIndicator.classList.add(statusClass);
+            statusIndicator.classList.add('show');
+        }
+        
+        // カメラ表示制御
+        function updateCameraDisplay(step) {
+            if (step < 4) {
+                // ステップ4未クリア: ノイズ表示（完全に見えない）
+                showNoise(true);
+                showDelay(false);
+            } else if (step < 6) {
+                // ステップ4クリア〜ステップ6未クリア: 通常撮影
+                showNoise(false);
+                showDelay(false);
+            } else {
+                // ステップ6クリア以降: 遅延撮影
+                showNoise(false);
+                showDelay(true);
+            }
+        }
+        
+        // ノイズ表示制御
+        function showNoise(show) {
+            if (show) {
+                noiseOverlay.classList.add('active');
+                log('ノイズ表示開始');
+            } else {
+                noiseOverlay.classList.remove('active');
+                log('ノイズ表示停止');
+            }
+        }
+        
+        // 遅延表示制御
+        function showDelay(show) {
+            if (show) {
+                cameraVideo.classList.add('delayed');
+                log('遅延表示開始');
+            } else {
+                cameraVideo.classList.remove('delayed');
+                log('遅延表示停止');
+            }
         }
         
         // 隠しボタン（左上5回タップ）
@@ -307,8 +975,158 @@
             window.location.href = 'index.html';
         }
         
+        // カメラデバイス検索
+        async function searchCameras() {
+            try {
+                log('カメラデバイス検索開始');
+                
+                // まずカメラへのアクセス許可を取得
+                await navigator.mediaDevices.getUserMedia({ video: true });
+                
+                // デバイス一覧を取得
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                log(`検出されたカメラ数: ${videoDevices.length}`);
+                
+                availableCameras = videoDevices;
+                displayCameraList();
+                
+            } catch (error) {
+                log(`カメラ検索エラー: ${error.message}`);
+                
+                let userMessage = 'カメラの検索に失敗しました';
+                let details = error.message;
+                
+                if (error.name === 'NotAllowedError') {
+                    userMessage = 'カメラへのアクセスが拒否されました';
+                    details = 'ブラウザの設定でカメラのアクセスを許可してください';
+                }
+                
+                cameraList.innerHTML = `
+                    <div style="text-align: center; color: rgba(255, 255, 255, 0.8);">
+                        <div style="font-size: 48px; margin-bottom: 20px;">❌</div>
+                        <div style="font-size: 18px; margin-bottom: 10px;">${userMessage}</div>
+                        <div style="font-size: 14px; opacity: 0.7;">${details}</div>
+                        <button style="margin-top: 20px; padding: 10px 20px; background: rgba(255,255,255,0.2); border: 1px solid white; color: white; border-radius: 8px; cursor: pointer;" onclick="searchCameras()">🔄 再試行</button>
+                    </div>
+                `;
+            }
+        }
+        
+        // カメラリスト表示
+        function displayCameraList() {
+            if (availableCameras.length === 0) {
+                cameraList.innerHTML = `
+                    <div style="text-align: center; color: rgba(255, 255, 255, 0.8);">
+                        <div style="font-size: 48px; margin-bottom: 20px;">📷</div>
+                        <div style="font-size: 18px;">カメラが見つかりませんでした</div>
+                        <div style="font-size: 14px; opacity: 0.7; margin-top: 10px;">カメラが接続されているか確認してください</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            availableCameras.forEach((camera, index) => {
+                const displayName = camera.label || `カメラ ${index + 1}`;
+                const cameraType = getCameraType(camera.label);
+                
+                html += `
+                    <div class="camera-item" data-camera-id="${camera.deviceId}" onclick="selectCamera('${camera.deviceId}')">
+                        <div class="camera-name">${cameraType.icon} ${displayName}</div>
+                        <div class="camera-info">${cameraType.description}</div>
+                    </div>
+                `;
+            });
+            
+            cameraList.innerHTML = html;
+            log(`カメラリスト表示完了: ${availableCameras.length}台`);
+            
+            // 前回選択したカメラがある場合は復元
+            if (selectedCameraId) {
+                const selectedItem = document.querySelector(`[data-camera-id="${selectedCameraId}"]`);
+                if (selectedItem) {
+                    selectedItem.classList.add('selected');
+                }
+            }
+        }
+        
+        // カメラタイプ判定
+        function getCameraType(label) {
+            if (!label) {
+                return { icon: '📷', description: 'カメラデバイス' };
+            }
+            
+            const lowerLabel = label.toLowerCase();
+            
+            if (lowerLabel.includes('front') || lowerLabel.includes('user') || lowerLabel.includes('内蔵')) {
+                return { icon: '🤳', description: 'フロントカメラ（前面）' };
+            } else if (lowerLabel.includes('back') || lowerLabel.includes('rear') || lowerLabel.includes('environment')) {
+                return { icon: '📷', description: 'バックカメラ（背面）' };
+            } else if (lowerLabel.includes('external') || lowerLabel.includes('usb')) {
+                return { icon: '🎥', description: '外部カメラ' };
+            } else {
+                return { icon: '📹', description: 'カメラデバイス' };
+            }
+        }
+        
+        // カメラ選択
+        function selectCamera(cameraId) {
+            selectedCameraId = cameraId;
+            
+            // 選択状態の視覚的更新
+            const items = document.querySelectorAll('.camera-item');
+            items.forEach(item => {
+                item.classList.remove('selected');
+                if (item.dataset.cameraId === cameraId) {
+                    item.classList.add('selected');
+                }
+            });
+            
+            // ボタンを有効化
+            startButton.disabled = false;
+            
+            const selectedCamera = availableCameras.find(cam => cam.deviceId === cameraId);
+            log(`カメラ選択: ${selectedCamera ? selectedCamera.label : cameraId}`);
+        }
+        
+        // 選択したカメラで開始
+        function startSelectedCamera() {
+            if (!selectedCameraId) {
+                alert('カメラを選択してください');
+                return;
+            }
+            
+            log(`選択されたカメラで開始: ${selectedCameraId}`);
+            
+            // カメラ選択画面を隠す
+            cameraSelection.classList.add('hidden');
+            
+            // カメラ開始
+            startCamera(selectedCameraId);
+        }
+        
+        // カメラ選択画面を表示
+        function showCameraSelection() {
+            stopCamera();
+            
+            // オーバーレイを隠す
+            loadingOverlay.classList.add('hidden');
+            errorOverlay.style.display = 'none';
+            
+            // カメラ選択画面を表示
+            cameraSelection.classList.remove('hidden');
+            
+            // 選択状態をリセット（以前に選択したカメラは保持）
+            startButton.disabled = !selectedCameraId;
+            
+            // カメラを再検索
+            searchCameras();
+        }
+        
         // カメラ開始
-        async function startCamera() {
+        async function startCamera(deviceId = null) {
             try {
                 log('カメラ開始');
                 
@@ -331,6 +1149,13 @@
                     },
                     audio: false // 音声は不要
                 };
+                
+                // 特定のデバイスIDが指定されている場合
+                if (deviceId) {
+                    constraints.video.deviceId = { exact: deviceId };
+                    delete constraints.video.facingMode; // deviceIdを指定する場合はfacingModeを削除
+                    log(`指定されたカメラID: ${deviceId}`);
+                }
                 
                 // カメラストリーム取得
                 cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -388,6 +1213,9 @@
                 } else if (error.name === 'NotReadableError') {
                     userMessage = 'カメラが使用中です';
                     details = '他のアプリケーションがカメラを使用している可能性があります';
+                } else if (error.name === 'OverconstrainedError') {
+                    userMessage = '選択したカメラで映像を取得できませんでした';
+                    details = '別のカメラを選択してください';
                 }
                 
                 showError(userMessage, details);
@@ -447,8 +1275,8 @@
             } else {
                 log('ページが表示されました');
                 // 必要に応じてカメラを再開
-                if (!cameraStream) {
-                    startCamera();
+                if (!cameraStream && selectedCameraId) {
+                    startCamera(selectedCameraId);
                 }
             }
         });
@@ -457,19 +1285,44 @@
         window.addEventListener('beforeunload', () => {
             log('ページ離脱 - カメラ停止');
             stopCamera();
+            
+            // Firebase監視を停止
+            if (firebaseListener) {
+                firebaseListener();
+            }
         });
         
         // 初期化
         document.addEventListener('DOMContentLoaded', () => {
             log('カメラタブレット自体システム初期化');
             
+            // Firebase初期化
+            if (initializeFirebase()) {
+                // 保存されたチーム番号を復元
+                const savedTeamNumber = localStorage.getItem('cameraTabletTeamNumber');
+                if (savedTeamNumber) {
+                    currentTeamNumber = parseInt(savedTeamNumber);
+                    teamNumberInput.value = currentTeamNumber;
+                    log(`保存されたチーム番号を復元: ${currentTeamNumber}`);
+                    
+                    // Firebase監視開始
+                    startFirebaseListener();
+                } else {
+                    // チーム番号選択画面を表示
+                    teamSelection.classList.add('show');
+                }
+            } else {
+                log('Firebase初期化失敗 - チーム番号選択画面を表示');
+                teamSelection.classList.add('show');
+            }
+            
             // フルスクリーンモードを試行
             setTimeout(() => {
                 requestFullscreen();
             }, 1000);
             
-            // カメラ自動開始
-            startCamera();
+            // カメラ選択画面を表示
+            showCameraSelection();
         });
         
         // エラーハンドリング
