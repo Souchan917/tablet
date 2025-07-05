@@ -10,3 +10,11 @@ const firebaseConfig = {
     measurementId: "G-4134JZPRFQ"
 };
 
+// Firebase初期化
+try {
+    firebase.initializeApp(firebaseConfig);
+    console.log("Firebase初期化完了");
+} catch (error) {
+    console.error("Firebase初期化エラー:", error);
+}
+

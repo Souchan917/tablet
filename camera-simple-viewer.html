@@ -77,34 +77,6 @@
             margin-bottom: 20px;
         }
         
-        .connection-input {
-            width: 100%;
-            padding: 15px;
-            margin: 10px 0;
-            border: 2px solid #4CAF50;
-            border-radius: 8px;
-            background-color: #333;
-            color: white;
-            font-size: 16px;
-            text-align: center;
-        }
-        
-        button {
-            width: 100%;
-            padding: 15px;
-            margin: 10px 0;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-primary { background-color: #2196F3; color: white; }
-        .btn-success { background-color: #4CAF50; color: white; }
-        .btn-danger { background-color: #f44336; color: white; }
-        
         .status {
             background-color: #333;
             padding: 15px;
@@ -123,6 +95,81 @@
         .status.error {
             background-color: #f44336;
         }
+        
+        .status.scanning {
+            background-color: #2196f3;
+        }
+        
+        /* タブレット一覧 */
+        .tablet-list {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .tablet-list-title {
+            color: #4CAF50;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .tablet-item {
+            background-color: #333;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .tablet-item:hover {
+            background-color: #444;
+            border-color: #4CAF50;
+        }
+        
+        .tablet-item.connecting {
+            border-color: #ff9800;
+            background-color: #3e2723;
+        }
+        
+        .tablet-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .tablet-info {
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .no-tablets {
+            color: #999;
+            font-style: italic;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary { background-color: #2196F3; color: white; }
+        .btn-success { background-color: #4CAF50; color: white; }
+        .btn-danger { background-color: #f44336; color: white; }
+        .btn-warning { background-color: #ff9800; color: white; }
         
         /* ローディング */
         .loading {
@@ -163,9 +210,15 @@
             opacity: 1;
         }
         
-        /* QRコードスキャナー */
-        .qr-scanner {
-            margin: 20px 0;
+        .refresh-button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
         }
         
         .instructions {
@@ -208,27 +261,25 @@
             <div class="panel-title">📱 カメラ映像視聴</div>
             
             <div class="status" id="status">
-                📡 接続準備中
+                📡 配信中タブレットを検索中...
             </div>
             
-            <input type="text" 
-                   class="connection-input" 
-                   id="connectionId" 
-                   placeholder="接続IDを入力してください">
-            
-            <button class="btn-success" id="connectBtn">🔗 接続</button>
-            
-            <div class="qr-scanner">
-                <button class="btn-primary" id="scanQR">📷 QRコードスキャン</button>
+            <div class="tablet-list" id="tabletList">
+                <div class="tablet-list-title">📱 配信中のタブレット</div>
+                <div class="no-tablets" id="noTabletsMessage">
+                    検索中...
+                </div>
             </div>
+            
+            <button class="refresh-button" id="refreshBtn">🔄 再検索</button>
             
             <button class="btn-danger" id="disconnectBtn">❌ 切断</button>
             
             <div class="instructions">
                 <strong>📋 接続方法：</strong><br>
-                1. スマホで表示された接続IDを入力<br>
-                2. またはQRコードをスキャン<br>
-                3. 「🔗 接続」をタップ
+                1. 配信中のタブレットを選択<br>
+                2. 自動的に接続されます<br>
+                3. 映像が表示されるまで少しお待ちください
             </div>
         </div>
     </div>
@@ -236,6 +287,11 @@
     <!-- エラーメッセージ -->
     <div class="error-message" id="errorMessage"></div>
 
+    <!-- Firebase CDN -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    
     <!-- PeerJS CDN -->
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     
@@ -244,18 +300,20 @@
         let connection = null;
         let call = null;
         let isConnected = false;
+        let tablets = {};
+        let scanTimer = null;
         
         // DOM要素
         const connectionPanel = document.getElementById('connectionPanel');
         const status = document.getElementById('status');
-        const connectionIdInput = document.getElementById('connectionId');
+        const tabletList = document.getElementById('tabletList');
+        const noTabletsMessage = document.getElementById('noTabletsMessage');
         const remoteVideo = document.getElementById('remoteVideo');
         const loading = document.getElementById('loading');
         const errorMessage = document.getElementById('errorMessage');
         
-        const connectBtn = document.getElementById('connectBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
         const disconnectBtn = document.getElementById('disconnectBtn');
-        const scanQRBtn = document.getElementById('scanQR');
         
         // 隠しボタン（左上5回タップ）
         let tapCount = 0;
@@ -300,35 +358,146 @@
             }, 5000);
         }
         
-        // URLパラメータから接続IDを取得
-        function getConnectionIdFromURL() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const id = urlParams.get('id');
-            if (id) {
-                connectionIdInput.value = id;
-                // 自動接続
-                setTimeout(() => {
-                    connect();
-                }, 1000);
+        // 配信中タブレット検索
+        function scanForTablets() {
+            if (typeof firebase !== 'undefined' && firebase.database) {
+                const ref = firebase.database().ref('camera-broadcasts');
+                
+                ref.on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    tablets = {};
+                    
+                    if (data) {
+                        const now = Date.now();
+                        // 30秒以内のハートビートのみ有効とする
+                        Object.keys(data).forEach(key => {
+                            const tablet = data[key];
+                            if (tablet.active && tablet.timestamp && (now - tablet.timestamp) < 30000) {
+                                tablets[key] = tablet;
+                            }
+                        });
+                    }
+                    
+                    updateTabletList();
+                });
+            } else {
+                // Firebase無効時は固定範囲スキャン
+                scanFixedRange();
             }
         }
         
-        // 接続
-        async function connect() {
-            const broadcastId = connectionIdInput.value.trim();
+        // 固定範囲スキャン（Firebase無効時）
+        function scanFixedRange() {
+            updateStatus('📡 タブレットを検索中...', 'scanning');
+            tablets = {};
             
-            if (!broadcastId) {
-                showError('接続IDを入力してください');
+            // 1-10番のタブレットを試す
+            for (let i = 1; i <= 10; i++) {
+                setTimeout(() => {
+                    checkTabletConnection(i);
+                }, i * 100);
+            }
+        }
+        
+        // タブレット接続確認
+        function checkTabletConnection(tabletId) {
+            const testPeer = new Peer(`test-${Date.now()}-${Math.random()}`);
+            
+            testPeer.on('open', () => {
+                const broadcastId = `camera-tablet-${tabletId}`;
+                const conn = testPeer.connect(broadcastId);
+                
+                const timeout = setTimeout(() => {
+                    conn.close();
+                    testPeer.destroy();
+                }, 3000);
+                
+                conn.on('open', () => {
+                    clearTimeout(timeout);
+                    tablets[`tablet-${tabletId}`] = {
+                        id: broadcastId,
+                        tabletId: tabletId,
+                        name: `タブレット${tabletId}`,
+                        active: true,
+                        timestamp: Date.now()
+                    };
+                    conn.close();
+                    testPeer.destroy();
+                    updateTabletList();
+                });
+                
+                conn.on('error', () => {
+                    clearTimeout(timeout);
+                    testPeer.destroy();
+                });
+            });
+        }
+        
+        // タブレット一覧更新
+        function updateTabletList() {
+            const tabletCount = Object.keys(tablets).length;
+            
+            if (tabletCount === 0) {
+                noTabletsMessage.innerHTML = `
+                    <div>配信中のタブレットが見つかりません</div>
+                    <div style="margin-top: 10px; font-size: 12px;">
+                        タブレット側で配信を開始してください
+                    </div>
+                `;
+                updateStatus('📡 配信中のタブレットが見つかりません');
                 return;
             }
             
+            updateStatus(`📱 ${tabletCount}台のタブレットを発見`, 'connected');
+            
+            let html = '';
+            Object.keys(tablets).forEach(key => {
+                const tablet = tablets[key];
+                const timeDiff = Date.now() - tablet.timestamp;
+                const timeStr = timeDiff < 10000 ? '接続中' : `${Math.floor(timeDiff / 1000)}秒前`;
+                
+                html += `
+                    <div class="tablet-item" onclick="connectToTablet('${tablet.id}', ${tablet.tabletId})">
+                        <div class="tablet-name">${tablet.name}</div>
+                        <div class="tablet-info">
+                            ID: ${tablet.id}<br>
+                            更新: ${timeStr}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            noTabletsMessage.innerHTML = html;
+        }
+        
+        // タブレットに接続
+        async function connectToTablet(broadcastId, tabletId) {
             try {
                 updateStatus('🔗 接続中...', 'connecting');
                 loading.classList.remove('hidden');
                 
+                // 接続中の視覚的フィードバック
+                const items = document.querySelectorAll('.tablet-item');
+                items.forEach(item => {
+                    if (item.textContent.includes(`タブレット${tabletId}`)) {
+                        item.classList.add('connecting');
+                    }
+                });
+                
                 // PeerJS初期化
                 const viewerId = `viewer-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-                peer = new Peer(viewerId);
+                peer = new Peer(viewerId, {
+                    host: 'peerjs-server.herokuapp.com',
+                    port: 443,
+                    path: '/peerjs',
+                    secure: true,
+                    config: {
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:stun1.l.google.com:19302' }
+                        ]
+                    }
+                });
                 
                 peer.on('open', (id) => {
                     console.log('Viewer ID:', id);
@@ -381,6 +550,10 @@
                         showError('配信者への接続に失敗しました');
                         updateStatus('❌ 接続失敗', 'error');
                         loading.classList.add('hidden');
+                        
+                        // 接続中表示を削除
+                        const items = document.querySelectorAll('.tablet-item');
+                        items.forEach(item => item.classList.remove('connecting'));
                     });
                 });
                 
@@ -389,7 +562,7 @@
                     let errorMsg = '接続エラーが発生しました';
                     
                     if (error.type === 'peer-unavailable') {
-                        errorMsg = '配信者が見つかりません。IDを確認してください';
+                        errorMsg = `タブレット${tabletId}が見つかりません`;
                     } else if (error.type === 'network') {
                         errorMsg = 'ネットワークエラーです';
                     }
@@ -397,6 +570,10 @@
                     showError(errorMsg);
                     updateStatus('❌ 接続エラー', 'error');
                     loading.classList.add('hidden');
+                    
+                    // 接続中表示を削除
+                    const items = document.querySelectorAll('.tablet-item');
+                    items.forEach(item => item.classList.remove('connecting'));
                 });
                 
                 // 接続タイムアウト
@@ -412,6 +589,10 @@
                 showError('接続を開始できませんでした');
                 updateStatus('❌ 接続エラー', 'error');
                 loading.classList.add('hidden');
+                
+                // 接続中表示を削除
+                const items = document.querySelectorAll('.tablet-item');
+                items.forEach(item => item.classList.remove('connecting'));
             }
         }
         
@@ -441,46 +622,42 @@
             connectionPanel.classList.remove('hidden');
             loading.classList.add('hidden');
             
-            updateStatus('📡 接続準備中');
+            // 接続中表示を削除
+            const items = document.querySelectorAll('.tablet-item');
+            items.forEach(item => item.classList.remove('connecting'));
+            
+            updateStatus('📡 配信中タブレットを検索中...', 'scanning');
+            
+            // 再検索
+            scanForTablets();
         }
         
-        // QRコードスキャン（カメラアクセス）
-        async function scanQRCode() {
-            try {
-                // 簡易実装：ユーザーに手動入力を促す
-                const id = prompt('QRコードに記載されている接続IDを入力してください:');
-                if (id) {
-                    connectionIdInput.value = id;
-                    connect();
-                }
-            } catch (error) {
-                showError('QRコードの読み取りに失敗しました');
-            }
+        // 再検索
+        function refresh() {
+            updateStatus('📡 配信中タブレットを検索中...', 'scanning');
+            tablets = {};
+            updateTabletList();
+            scanForTablets();
         }
+        
+        // グローバル関数として定義
+        window.connectToTablet = connectToTablet;
         
         // イベントリスナー
-        connectBtn.addEventListener('click', connect);
+        refreshBtn.addEventListener('click', refresh);
         disconnectBtn.addEventListener('click', disconnect);
-        scanQRBtn.addEventListener('click', scanQRCode);
-        
-        // Enterキーで接続
-        connectionIdInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                connect();
-            }
-        });
         
         // 全画面表示時のキーボードイベント
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && isConnected) {
-                connectionPanel.classList.toggle('hidden');
+                disconnect();
             }
         });
         
         // 初期化
         document.addEventListener('DOMContentLoaded', () => {
-            updateStatus('📡 接続準備中');
-            getConnectionIdFromURL();
+            updateStatus('📡 配信中タブレットを検索中...', 'scanning');
+            scanForTablets();
         });
         
         // ページ離脱時のクリーンアップ
