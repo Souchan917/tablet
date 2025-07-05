@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カメラ映像視聴</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background-color: #000;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        
+        /* 隠しボタン（左上5回タップ） */
+        .hidden-back-btn {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 80px;
+            height: 80px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            z-index: 1000;
+            opacity: 0;
+        }
+        
+        /* メイン映像コンテナ */
+        .video-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* 映像要素 */
+        #remoteVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background-color: #000;
+        }
+        
+        /* 接続パネル */
+        .connection-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 100;
+            max-width: 90%;
+            width: 400px;
+        }
+        
+        .connection-panel.hidden {
+            display: none;
+        }
+        
+        .panel-title {
+            color: #4CAF50;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        .connection-input {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            background-color: #333;
+            color: white;
+            font-size: 16px;
+            text-align: center;
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary { background-color: #2196F3; color: white; }
+        .btn-success { background-color: #4CAF50; color: white; }
+        .btn-danger { background-color: #f44336; color: white; }
+        
+        .status {
+            background-color: #333;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        
+        .status.connecting {
+            background-color: #ff9800;
+        }
+        
+        .status.connected {
+            background-color: #4caf50;
+        }
+        
+        .status.error {
+            background-color: #f44336;
+        }
+        
+        /* ローディング */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            text-align: center;
+            z-index: 50;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        
+        .loading.hidden {
+            display: none;
+        }
+        
+        /* エラーメッセージ */
+        .error-message {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(244, 67, 54, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 200;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .error-message.show {
+            opacity: 1;
+        }
+        
+        /* QRコードスキャナー */
+        .qr-scanner {
+            margin: 20px 0;
+        }
+        
+        .instructions {
+            font-size: 14px;
+            color: #ccc;
+            margin-top: 20px;
+            line-height: 1.5;
+        }
+        
+        @media (max-width: 768px) {
+            .connection-panel {
+                width: 90%;
+                padding: 20px;
+            }
+            
+            .panel-title {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 隠しボタン（左上5回タップでホーム） -->
+    <button class="hidden-back-btn" id="hiddenBackBtn"></button>
+    
+    <!-- メイン映像表示 -->
+    <div class="video-container">
+        <video id="remoteVideo" autoplay playsinline></video>
+        
+        <!-- ローディング -->
+        <div class="loading" id="loading">
+            <div>📡 映像を受信中...</div>
+            <div style="margin-top: 10px; font-size: 14px;">
+                しばらくお待ちください
+            </div>
+        </div>
+        
+        <!-- 接続パネル -->
+        <div class="connection-panel" id="connectionPanel">
+            <div class="panel-title">📱 カメラ映像視聴</div>
+            
+            <div class="status" id="status">
+                📡 接続準備中
+            </div>
+            
+            <input type="text" 
+                   class="connection-input" 
+                   id="connectionId" 
+                   placeholder="接続IDを入力してください">
+            
+            <button class="btn-success" id="connectBtn">🔗 接続</button>
+            
+            <div class="qr-scanner">
+                <button class="btn-primary" id="scanQR">📷 QRコードスキャン</button>
+            </div>
+            
+            <button class="btn-danger" id="disconnectBtn">❌ 切断</button>
+            
+            <div class="instructions">
+                <strong>📋 接続方法：</strong><br>
+                1. スマホで表示された接続IDを入力<br>
+                2. またはQRコードをスキャン<br>
+                3. 「🔗 接続」をタップ
+            </div>
+        </div>
+    </div>
+    
+    <!-- エラーメッセージ -->
+    <div class="error-message" id="errorMessage"></div>
+
+    <!-- PeerJS CDN -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    
+    <script>
+        let peer = null;
+        let connection = null;
+        let call = null;
+        let isConnected = false;
+        
+        // DOM要素
+        const connectionPanel = document.getElementById('connectionPanel');
+        const status = document.getElementById('status');
+        const connectionIdInput = document.getElementById('connectionId');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const loading = document.getElementById('loading');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const scanQRBtn = document.getElementById('scanQR');
+        
+        // 隠しボタン（左上5回タップ）
+        let tapCount = 0;
+        let tapTimer = null;
+        document.getElementById('hiddenBackBtn').addEventListener('click', function() {
+            tapCount++;
+            
+            if (tapTimer) {
+                clearTimeout(tapTimer);
+            }
+            
+            if (tapCount >= 5) {
+                goHome();
+                return;
+            }
+            
+            // 2秒以内にタップしなかった場合リセット
+            tapTimer = setTimeout(() => {
+                tapCount = 0;
+            }, 2000);
+        });
+        
+        // ホームに戻る
+        function goHome() {
+            disconnect();
+            window.location.href = 'index.html';
+        }
+        
+        // ステータス更新
+        function updateStatus(message, className = '') {
+            status.textContent = message;
+            status.className = className ? `status ${className}` : 'status';
+        }
+        
+        // エラーメッセージ表示
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+            
+            setTimeout(() => {
+                errorMessage.classList.remove('show');
+            }, 5000);
+        }
+        
+        // URLパラメータから接続IDを取得
+        function getConnectionIdFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const id = urlParams.get('id');
+            if (id) {
+                connectionIdInput.value = id;
+                // 自動接続
+                setTimeout(() => {
+                    connect();
+                }, 1000);
+            }
+        }
+        
+        // 接続
+        async function connect() {
+            const broadcastId = connectionIdInput.value.trim();
+            
+            if (!broadcastId) {
+                showError('接続IDを入力してください');
+                return;
+            }
+            
+            try {
+                updateStatus('🔗 接続中...', 'connecting');
+                loading.classList.remove('hidden');
+                
+                // PeerJS初期化
+                const viewerId = `viewer-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                peer = new Peer(viewerId);
+                
+                peer.on('open', (id) => {
+                    console.log('Viewer ID:', id);
+                    
+                    // 配信者に接続
+                    connection = peer.connect(broadcastId);
+                    
+                    connection.on('open', () => {
+                        console.log('データ接続確立');
+                        updateStatus('📡 データ接続完了', 'connected');
+                        
+                        // 音声・映像通話開始
+                        call = peer.call(broadcastId, new MediaStream());
+                        
+                        call.on('stream', (remoteStream) => {
+                            console.log('映像ストリーム受信');
+                            remoteVideo.srcObject = remoteStream;
+                            
+                            // 全画面表示
+                            connectionPanel.classList.add('hidden');
+                            loading.classList.add('hidden');
+                            isConnected = true;
+                            
+                            updateStatus('🔴 映像受信中', 'connected');
+                        });
+                        
+                        call.on('close', () => {
+                            console.log('通話終了');
+                            disconnect();
+                        });
+                        
+                        call.on('error', (error) => {
+                            console.error('通話エラー:', error);
+                            showError('映像の受信に失敗しました');
+                            disconnect();
+                        });
+                    });
+                    
+                    connection.on('data', (data) => {
+                        console.log('受信データ:', data);
+                    });
+                    
+                    connection.on('close', () => {
+                        console.log('データ接続終了');
+                        disconnect();
+                    });
+                    
+                    connection.on('error', (error) => {
+                        console.error('接続エラー:', error);
+                        showError('配信者への接続に失敗しました');
+                        updateStatus('❌ 接続失敗', 'error');
+                        loading.classList.add('hidden');
+                    });
+                });
+                
+                peer.on('error', (error) => {
+                    console.error('Peer エラー:', error);
+                    let errorMsg = '接続エラーが発生しました';
+                    
+                    if (error.type === 'peer-unavailable') {
+                        errorMsg = '配信者が見つかりません。IDを確認してください';
+                    } else if (error.type === 'network') {
+                        errorMsg = 'ネットワークエラーです';
+                    }
+                    
+                    showError(errorMsg);
+                    updateStatus('❌ 接続エラー', 'error');
+                    loading.classList.add('hidden');
+                });
+                
+                // 接続タイムアウト
+                setTimeout(() => {
+                    if (!isConnected && peer) {
+                        showError('接続がタイムアウトしました');
+                        disconnect();
+                    }
+                }, 15000);
+                
+            } catch (error) {
+                console.error('接続開始エラー:', error);
+                showError('接続を開始できませんでした');
+                updateStatus('❌ 接続エラー', 'error');
+                loading.classList.add('hidden');
+            }
+        }
+        
+        // 切断
+        function disconnect() {
+            if (call) {
+                call.close();
+                call = null;
+            }
+            
+            if (connection) {
+                connection.close();
+                connection = null;
+            }
+            
+            if (peer) {
+                peer.destroy();
+                peer = null;
+            }
+            
+            if (remoteVideo.srcObject) {
+                remoteVideo.srcObject = null;
+            }
+            
+            isConnected = false;
+            
+            connectionPanel.classList.remove('hidden');
+            loading.classList.add('hidden');
+            
+            updateStatus('📡 接続準備中');
+        }
+        
+        // QRコードスキャン（カメラアクセス）
+        async function scanQRCode() {
+            try {
+                // 簡易実装：ユーザーに手動入力を促す
+                const id = prompt('QRコードに記載されている接続IDを入力してください:');
+                if (id) {
+                    connectionIdInput.value = id;
+                    connect();
+                }
+            } catch (error) {
+                showError('QRコードの読み取りに失敗しました');
+            }
+        }
+        
+        // イベントリスナー
+        connectBtn.addEventListener('click', connect);
+        disconnectBtn.addEventListener('click', disconnect);
+        scanQRBtn.addEventListener('click', scanQRCode);
+        
+        // Enterキーで接続
+        connectionIdInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                connect();
+            }
+        });
+        
+        // 全画面表示時のキーボードイベント
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isConnected) {
+                connectionPanel.classList.toggle('hidden');
+            }
+        });
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            updateStatus('📡 接続準備中');
+            getConnectionIdFromURL();
+        });
+        
+        // ページ離脱時のクリーンアップ
+        window.addEventListener('beforeunload', () => {
+            disconnect();
+        });
+        
+        // エラーハンドリング
+        window.addEventListener('error', (event) => {
+            console.error('グローバルエラー:', event.error);
+            showError('予期しないエラーが発生しました');
+        });
+    </script>
+</body>
+</html> 

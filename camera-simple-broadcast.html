@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カメラ配信 - スマホ撮影</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: white;
+            padding: 10px;
+        }
+        
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .status {
+            background-color: #333;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .status.active {
+            background-color: #2e7d32;
+        }
+        
+        .controls {
+            background-color: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary { background-color: #2196F3; color: white; }
+        .btn-success { background-color: #4CAF50; color: white; }
+        .btn-danger { background-color: #f44336; color: white; }
+        .btn-warning { background-color: #FF9800; color: white; }
+        
+        video {
+            width: 100%;
+            height: auto;
+            background-color: #000;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .connection-id {
+            background-color: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 18px;
+            text-align: center;
+            margin-bottom: 20px;
+            border: 2px solid #4CAF50;
+        }
+        
+        .qr-code {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .instructions {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .back-btn {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background-color: #666;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1000;
+        }
+        
+        .viewer-count {
+            background-color: #333;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <button class="back-btn" onclick="goBack()">← 戻る</button>
+    
+    <div class="container">
+        <div class="header">
+            <h1>📱 カメラ配信</h1>
+            <div>スマホ撮影用</div>
+        </div>
+        
+        <div class="status" id="status">
+            📡 配信準備中
+        </div>
+        
+        <div class="controls">
+            <button class="btn-success" id="startCamera">📹 カメラ開始</button>
+            <button class="btn-primary" id="startBroadcast" disabled>🚀 配信開始</button>
+            <button class="btn-danger" id="stopBroadcast" disabled>⏹️ 配信停止</button>
+        </div>
+        
+        <video id="localVideo" autoplay muted playsinline></video>
+        
+        <div class="connection-id" id="connectionId" style="display: none;">
+            接続ID: <span id="broadcastId">準備中...</span>
+        </div>
+        
+        <div class="qr-code" id="qrCodeContainer" style="display: none;">
+            <div id="qrcode"></div>
+            <div style="margin-top: 10px; color: #333;">
+                QRコードをスキャンして視聴
+            </div>
+        </div>
+        
+        <div class="viewer-count" id="viewerCount" style="display: none;">
+            👥 視聴者数: <span id="count">0</span>人
+        </div>
+        
+        <div class="instructions">
+            <h3>📋 使用方法</h3>
+            <ol>
+                <li>「📹 カメラ開始」をタップ</li>
+                <li>「🚀 配信開始」をタップ</li>
+                <li>表示された接続IDを別端末に教える</li>
+                <li>またはQRコードをスキャンしてもらう</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- PeerJS CDN -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <!-- QRCode.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    
+    <script>
+        let localStream = null;
+        let peer = null;
+        let connections = [];
+        let isStreaming = false;
+        let broadcastId = null;
+        
+        // DOM要素
+        const status = document.getElementById('status');
+        const localVideo = document.getElementById('localVideo');
+        const connectionIdDiv = document.getElementById('connectionId');
+        const broadcastIdSpan = document.getElementById('broadcastId');
+        const qrCodeContainer = document.getElementById('qrCodeContainer');
+        const viewerCountDiv = document.getElementById('viewerCount');
+        const countSpan = document.getElementById('count');
+        
+        const startCameraBtn = document.getElementById('startCamera');
+        const startBroadcastBtn = document.getElementById('startBroadcast');
+        const stopBroadcastBtn = document.getElementById('stopBroadcast');
+        
+        // ステータス更新
+        function updateStatus(message, isActive = false) {
+            status.textContent = message;
+            status.className = isActive ? 'status active' : 'status';
+        }
+        
+        // 視聴者数更新
+        function updateViewerCount() {
+            countSpan.textContent = connections.length;
+        }
+        
+        // カメラ開始
+        async function startCamera() {
+            try {
+                updateStatus('📹 カメラ起動中...');
+                
+                const constraints = {
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        frameRate: { ideal: 30 },
+                        facingMode: 'environment' // 背面カメラ
+                    },
+                    audio: false
+                };
+                
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                localVideo.srcObject = localStream;
+                
+                startCameraBtn.disabled = true;
+                startBroadcastBtn.disabled = false;
+                
+                updateStatus('📹 カメラ準備完了 - 配信を開始してください');
+                
+            } catch (error) {
+                console.error('カメラエラー:', error);
+                updateStatus('❌ カメラアクセスエラー');
+                alert('カメラにアクセスできません: ' + error.message);
+            }
+        }
+        
+        // 配信開始
+        async function startBroadcast() {
+            try {
+                if (!localStream) {
+                    alert('まずカメラを開始してください');
+                    return;
+                }
+                
+                updateStatus('🚀 配信準備中...');
+                
+                // PeerJS初期化
+                broadcastId = `camera-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                peer = new Peer(broadcastId);
+                
+                peer.on('open', (id) => {
+                    console.log('Peer ID:', id);
+                    broadcastIdSpan.textContent = id;
+                    connectionIdDiv.style.display = 'block';
+                    
+                    // QRコード生成
+                    generateQRCode(id);
+                    
+                    updateStatus('🔴 配信中', true);
+                    isStreaming = true;
+                    
+                    startBroadcastBtn.disabled = true;
+                    stopBroadcastBtn.disabled = false;
+                    viewerCountDiv.style.display = 'block';
+                });
+                
+                peer.on('connection', (conn) => {
+                    console.log('新しい視聴者:', conn.peer);
+                    setupConnection(conn);
+                });
+                
+                peer.on('call', (call) => {
+                    console.log('視聴者からの通話:', call.peer);
+                    call.answer(localStream);
+                    
+                    call.on('close', () => {
+                        console.log('通話終了:', call.peer);
+                        removeConnection(call.peer);
+                    });
+                });
+                
+                peer.on('error', (error) => {
+                    console.error('Peer エラー:', error);
+                    updateStatus('❌ 配信エラー');
+                    alert('配信エラー: ' + error.message);
+                });
+                
+            } catch (error) {
+                console.error('配信開始エラー:', error);
+                updateStatus('❌ 配信開始エラー');
+                alert('配信を開始できません: ' + error.message);
+            }
+        }
+        
+        // 接続設定
+        function setupConnection(conn) {
+            connections.push(conn);
+            updateViewerCount();
+            
+            conn.on('open', () => {
+                console.log('データ接続確立:', conn.peer);
+                conn.send({
+                    type: 'welcome',
+                    message: 'カメラ配信に接続しました'
+                });
+            });
+            
+            conn.on('data', (data) => {
+                console.log('受信データ:', data);
+            });
+            
+            conn.on('close', () => {
+                console.log('接続終了:', conn.peer);
+                removeConnection(conn.peer);
+            });
+            
+            conn.on('error', (error) => {
+                console.error('接続エラー:', error);
+                removeConnection(conn.peer);
+            });
+        }
+        
+        // 接続削除
+        function removeConnection(peerId) {
+            connections = connections.filter(conn => conn.peer !== peerId);
+            updateViewerCount();
+        }
+        
+        // QRコード生成
+        function generateQRCode(id) {
+            const viewerUrl = `${window.location.origin}${window.location.pathname.replace('camera-simple-broadcast.html', 'camera-simple-viewer.html')}?id=${id}`;
+            
+            QRCode.toCanvas(document.getElementById('qrcode'), viewerUrl, {
+                width: 200,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            }, (error) => {
+                if (error) {
+                    console.error('QRコード生成エラー:', error);
+                } else {
+                    qrCodeContainer.style.display = 'block';
+                }
+            });
+        }
+        
+        // 配信停止
+        function stopBroadcast() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+                localVideo.srcObject = null;
+            }
+            
+            if (peer) {
+                peer.destroy();
+                peer = null;
+            }
+            
+            connections.forEach(conn => {
+                conn.close();
+            });
+            connections = [];
+            
+            isStreaming = false;
+            broadcastId = null;
+            
+            startCameraBtn.disabled = false;
+            startBroadcastBtn.disabled = true;
+            stopBroadcastBtn.disabled = true;
+            
+            connectionIdDiv.style.display = 'none';
+            qrCodeContainer.style.display = 'none';
+            viewerCountDiv.style.display = 'none';
+            
+            updateStatus('📡 配信停止');
+        }
+        
+        // 戻るボタン
+        function goBack() {
+            stopBroadcast();
+            window.location.href = 'index.html';
+        }
+        
+        // イベントリスナー
+        startCameraBtn.addEventListener('click', startCamera);
+        startBroadcastBtn.addEventListener('click', startBroadcast);
+        stopBroadcastBtn.addEventListener('click', stopBroadcast);
+        
+        // ページ離脱時のクリーンアップ
+        window.addEventListener('beforeunload', () => {
+            stopBroadcast();
+        });
+        
+        // 初期状態
+        updateStatus('📡 配信準備中');
+    </script>
+</body>
+</html> 
