@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STAFF - 謎解きシステム</title>
+    <title>スタッフ前 - 謎解きシステム</title>
     <style>
         * {
             margin: 0;
@@ -195,13 +195,13 @@
                 min-height: 45px;
             }
             
-                         .team-label, .step-label {
-                 min-width: 70px;
-                 font-size: 12px;
-                 padding: 6px 8px;
-             }
-             
-                         .team-label:hover {
+            .team-label, .step-label {
+                min-width: 70px;
+                font-size: 12px;
+                padding: 6px 8px;
+            }
+            
+            .team-label:hover {
                 background: #aaa;
                 transform: scale(1.05);
             }
@@ -217,11 +217,11 @@
                 padding: 6px 8px;
                 min-height: 35px;
             }
-             
-             .step-btn.current {
-                 background: #90EE90;
-                 box-shadow: 0 0 8px rgba(144, 238, 144, 0.5);
-             }
+            
+            .step-btn.current {
+                background: #90EE90;
+                box-shadow: 0 0 8px rgba(144, 238, 144, 0.5);
+            }
             
             .stat-number {
                 font-size: 1.2em;
@@ -249,14 +249,14 @@
                 gap: 4px;
             }
             
-                         .team-label, .step-label {
-                 min-width: 60px;
-                 font-size: 11px;
-                 padding: 4px 6px;
-                 margin-right: 6px;
-             }
-             
-                         .team-label:hover {
+            .team-label, .step-label {
+                min-width: 60px;
+                font-size: 11px;
+                padding: 4px 6px;
+                margin-right: 6px;
+            }
+            
+            .team-label:hover {
                 background: #aaa;
                 transform: scale(1.05);
             }
@@ -272,11 +272,11 @@
                 padding: 4px 6px;
                 min-height: 30px;
             }
-             
-             .step-btn.current {
-                 background: #90EE90;
-                 box-shadow: 0 0 6px rgba(144, 238, 144, 0.5);
-             }
+            
+            .step-btn.current {
+                background: #90EE90;
+                box-shadow: 0 0 6px rgba(144, 238, 144, 0.5);
+            }
             
             .steps-container {
                 gap: 4px;
@@ -301,7 +301,7 @@
     <button class="back-btn" onclick="goBack()">← 戻る</button>
     
     <div class="container">
-        <h1>STAFF 進捗管理</h1>
+        <h1>スタッフ前 進捗管理</h1>
         
         <div class="teams-container" id="teamsContainer">
             <!-- チーム行はJavaScriptで生成 -->
@@ -339,7 +339,7 @@
 
         // 初期化
         function initializeProgress() {
-            const savedProgress = localStorage.getItem('tabletTeamProgress');
+            const savedProgress = localStorage.getItem('tabletTeamProgressFront');
             if (savedProgress) {
                 teamProgress = JSON.parse(savedProgress);
             } else {
@@ -353,13 +353,13 @@
 
         // 進捗をローカルストレージに保存
         function saveProgress() {
-            localStorage.setItem('tabletTeamProgress', JSON.stringify(teamProgress));
+            localStorage.setItem('tabletTeamProgressFront', JSON.stringify(teamProgress));
         }
 
         // Firebaseに進捗を保存
         async function saveProgressToFirebase(teamId, progress) {
             try {
-                await db.collection('tabletTeams').doc(teamId.toString()).set({
+                await db.collection('tabletTeamsFront').doc(teamId.toString()).set({
                     progress: progress,
                     lastUpdated: new Date()
                 }, { merge: true });
@@ -372,7 +372,7 @@
         async function loadProgressFromFirebase() {
             try {
                 for (let teamId = 1; teamId <= totalTeams; teamId++) {
-                    const teamDoc = await db.collection('tabletTeams').doc(teamId.toString()).get();
+                    const teamDoc = await db.collection('tabletTeamsFront').doc(teamId.toString()).get();
                     if (teamDoc.exists) {
                         const data = teamDoc.data();
                         if (data.progress && Array.isArray(data.progress)) {
@@ -391,7 +391,7 @@
         async function setSelectedTeam(teamId) {
             try {
                 const currentStep = getCurrentStep(teamId);
-                await db.collection('monitor').doc('selectedTeam').set({
+                await db.collection('monitor-front').doc('selectedTeam').set({
                     teamId: teamId,
                     currentStep: currentStep,
                     progress: teamProgress[teamId],
@@ -428,7 +428,7 @@
         // Firebaseから現在選択されているチームを読み込み
         async function loadSelectedTeamFromFirebase() {
             try {
-                const selectedTeamDoc = await db.collection('monitor').doc('selectedTeam').get();
+                const selectedTeamDoc = await db.collection('monitor-front').doc('selectedTeam').get();
                 if (selectedTeamDoc.exists) {
                     const data = selectedTeamDoc.data();
                     currentSelectedTeamId = data.teamId;

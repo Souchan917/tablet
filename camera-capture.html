@@ -424,21 +424,23 @@
 
         // PeerJS接続を初期化
         function initializePeer() {
-            const peerId = 'tablet-broadcast-' + Date.now().toString(36);
+            // 標準的なpeerID形式を生成（受信側の検出に対応）
+            const timeStr = Math.floor(Date.now() / 1000).toString(36);
+            const peerId = `tablet-broadcast-${timeStr}`;
             
             console.log('PeerJS初期化開始:', peerId);
             
             // WebRTC設定
             const config = {
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' },
-                    { urls: 'stun:stun2.l.google.com:19302' },
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' },
                     { urls: 'stun:stun3.l.google.com:19302' }
-                ],
-                iceTransportPolicy: 'all',
-                bundlePolicy: 'max-compat',
-                rtcpMuxPolicy: 'require',
+                    ],
+                    iceTransportPolicy: 'all',
+                    bundlePolicy: 'max-compat',
+                    rtcpMuxPolicy: 'require',
                 iceCandidatePoolSize: 10,
                 sdpSemantics: 'unified-plan'
             };
@@ -516,16 +518,56 @@
 
             peer.on('error', function(err) {
                 console.error('PeerJS エラー:', err);
-                showError('接続エラー: ' + err.type);
-                
-                // 接続エラーの場合は再接続を試行
-                if (err.type === 'network' || err.type === 'server-error') {
-                    console.log('5秒後に自動再接続を試行します...');
-                    setTimeout(() => {
-                        initializePeer();
-                    }, 5000);
+                handlePeerError(err);
+            });
+
+            peer.on('disconnected', function() {
+                console.log('PeerJS切断 - 再接続を試行中...');
+                if (peer && !peer.destroyed) {
+                    peer.reconnect();
                 }
             });
+        }
+
+        // PeerJSエラーハンドリングの改善
+        function handlePeerError(err) {
+            let errorMessage = '';
+            
+                switch (err.type) {
+                    case 'network':
+                    errorMessage = 'ネットワーク接続エラー - インターネット接続を確認してください';
+                        break;
+                    case 'server-error':
+                    errorMessage = 'サーバーエラー - しばらくしてから再試行してください';
+                        break;
+                    case 'unavailable-id':
+                    errorMessage = 'IDが使用中です - 自動的に再試行します';
+                    // IDが使用中の場合は新しいIDで再試行
+                    setTimeout(() => {
+                        if (peer) {
+                            peer.destroy();
+                        }
+                        initializePeer();
+                    }, 2000);
+                        break;
+                    case 'browser-incompatible':
+                    errorMessage = 'ブラウザが対応していません - Chrome、Safari、Firefoxをお使いください';
+                        break;
+                    default:
+                    errorMessage = `接続エラー (${err.type}) - 再試行してください`;
+                }
+                
+            showError(errorMessage);
+                
+            // 自動再接続（ネットワークエラーまたはサーバーエラーの場合）
+                if (err.type === 'network' || err.type === 'server-error') {
+                    setTimeout(() => {
+                    if (!peer || peer.destroyed) {
+                        console.log('PeerJS自動再接続を実行中...');
+                        initializePeer();
+                    }
+                }, 3000);
+            }
         }
 
         // 接続最適化

@@ -4,130 +4,469 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>車両番号 - 謎解きシステム</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Playfair Display', 'Georgia', serif;
+            background-color: #1c1c1c;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #d4af37;
+            background-image: radial-gradient(circle at center, #2c2c2c 0%, #1c1c1c 100%);
+            overflow: hidden;
+        }
+
+        /* 隠しボタン（左上5回タップ） */
+        .hidden-back-btn {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100px;
+            height: 100px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            z-index: 1000;
+            opacity: 0;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        .train-car-number-display {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .train-car-frame {
+            background: linear-gradient(45deg, #111111, #333333);
+            border: 15px solid;
+            border-image: linear-gradient(135deg, #d4af37, #f4e38e, #d4af37, #7d6608) 1;
+            border-radius: 0px;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 95vw;
+            height: 95vh;
+            box-shadow: 
+                0 10px 30px rgba(0, 0, 0, 0.8), 
+                inset 0 2px 10px rgba(255, 215, 0, 0.2),
+                0 0 20px rgba(212, 175, 55, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .train-car-frame::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect x="0" y="0" width="40" height="40" fill="none" stroke="rgba(212, 175, 55, 0.15)" stroke-width="1"/></svg>');
+            background-size: 40px 40px;
+            pointer-events: none;
+            opacity: 0.2;
+        }
+
+        .train-car-frame::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, 
+                rgba(212, 175, 55, 0.1) 0%, 
+                rgba(212, 175, 55, 0) 50%, 
+                rgba(212, 175, 55, 0.1) 100%);
+            pointer-events: none;
+        }
+
+        .train-emblem {
+            width: 40%;
+            max-width: 300px;
+            margin-bottom: 1rem;
+            border: 2px solid #d4af37;
+            padding: 0.5rem;
+            background-color: #111111;
+            border-radius: 4px;
+            box-shadow: 
+                inset 0 0 5px rgba(0, 0, 0, 0.8),
+                0 0 10px rgba(212, 175, 55, 0.3);
+        }
+
+        .emblem-inner {
+            border: 1px solid #d4af37;
+            padding: 0.8rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #111111;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .emblem-inner::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(
+                to right,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, 0.3) 100%
+            );
+            transform: skewX(-25deg);
+            animation: shine 5s infinite;
+        }
+
+        @keyframes shine {
+            0% { left: -100%; }
+            20% { left: 100%; }
+            100% { left: 100%; }
+        }
+
+        .emblem-text {
+            color: #d4af37;
+            font-size: 1.2rem;
+            font-weight: bold;
+            letter-spacing: 4px;
+            text-align: center;
+            text-shadow: 0 0 5px rgba(212, 175, 55, 0.5);
+        }
+
+        .car-number-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-grow: 1;
+            justify-content: center;
+            width: 100%;
+            position: relative;
+        }
+
+        .car-number {
+            font-size: 70vw;
+            font-weight: bold;
+            color: #d4af37;
+            text-shadow: 
+                0 4px 10px rgba(0, 0, 0, 0.5),
+                0 0 20px rgba(212, 175, 55, 0.3),
+                0 0 40px rgba(212, 175, 55, 0.2);
+            line-height: 0.9;
+            text-align: center;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Times New Roman', Times, serif;
+            min-height: 60vh;
+        }
+
+        .car-suffix {
+            font-size: 4.5rem;
+            font-weight: bold;
+            color: #d4af37;
+            margin-top: 0.5rem;
+            letter-spacing: 2px;
+            text-align: center;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+            font-family: sans-serif;
+        }
+
+        .car-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #d4af37;
+            margin-top: 0.5rem;
+            letter-spacing: 3px;
+            text-shadow: 0 0 5px rgba(212, 175, 55, 0.5);
+        }
+
+        /* 減算アニメーション */
+        .car-number.countdown {
+            animation: countdown-pulse 1s ease-in-out;
+        }
+
+        @keyframes countdown-pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); color: #ff6b6b; }
+            100% { transform: scale(1); }
+        }
+
+        /* 桁数に応じたフォントサイズ微調整 */
+        .car-number.digits-1 {
+            font-size: 80vw;
+        }
+        
+        .car-number.digits-2 {
+            font-size: 76vw;
+        }
+        
+        .car-number.digits-3 {
+            font-size: 70vw;
+        }
+        
+        .car-number.digits-4 {
+            font-size: 64vw;
+        }
+
+        /* レスポンシブデザイン */
+        @media (max-width: 768px) {
+            .train-car-frame {
+                border-width: 10px;
+                padding: 1rem;
+            }
+            
+            .car-suffix {
+                font-size: 3rem;
+            }
+            
+            .car-name {
+                font-size: 1.2rem;
+            }
+
+            .emblem-text {
+                font-size: 1rem;
+                letter-spacing: 2px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .train-car-frame {
+                border-width: 8px;
+                padding: 0.5rem;
+            }
+            
+            .car-suffix {
+                font-size: 2.5rem;
+            }
+            
+            .emblem-text {
+                font-size: 0.8rem;
+                letter-spacing: 1px;
+            }
+
+            .car-name {
+                font-size: 1rem;
+            }
+        }
+
+        /* 横向きの場合の調整 */
+        @media (orientation: landscape) {
+            .car-number.digits-1 {
+                font-size: 60vh;
+            }
+            
+            .car-number.digits-2 {
+                font-size: 56vh;
+            }
+            
+            .car-number.digits-3 {
+                font-size: 50vh;
+            }
+            
+            .car-number.digits-4 {
+                font-size: 44vh;
+            }
+        }
+    </style>
 </head>
 <body>
-    <button class="back-btn" onclick="goBack()">← 戻る</button>
+    <button class="hidden-back-btn" id="hiddenBackBtn"></button>
     
     <div class="container">
-        <h1>車両番号表示</h1>
-        
-        <div class="car-number-display" id="carNumberDisplay">
-            3600
-        </div>
-        
-        <div class="car-info">
-            <p>号車</p>
-            <p id="statusText">待機中...</p>
-        </div>
-        
-        <div class="controls">
-            <button class="control-btn" id="startBtn">開始</button>
-            <button class="control-btn" id="stopBtn">停止</button>
-            <button class="control-btn" id="resetBtn">リセット</button>
-            <button class="control-btn" id="fullscreenBtn">全画面表示</button>
-        </div>
-        
-        <div class="manual-controls">
-            <h3>手動設定</h3>
-            <input type="number" id="manualInput" min="0" max="9999" value="3600">
-            <button class="control-btn" id="setBtn">設定</button>
+        <div class="train-car-number-display">
+            <div class="train-car-frame">
+                <div class="train-emblem">
+                    <div class="emblem-inner">
+                        <span class="emblem-text">GATANGO TRAIN</span>
+                    </div>
+                </div>
+                <div class="car-number-container">
+                    <div class="car-number digits-4" id="carNumber">3600</div>
+                    <div class="car-suffix">号車</div>
+                </div>
+                <div class="car-name">GATANGO</div>
+            </div>
         </div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/firebase-config.js"></script>
     <script>
+        // Firebase初期化
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
         let currentCarNumber = 3600;
-        let isRunning = false;
-        let intervalId = null;
         let unsubscribeCarNumber = null;
+        let unsubscribeCountdown = null;
+        let countdownInterval = null;
+
+        // 隠しボタン（左上5回タップ）
+        let tapCount = 0;
+        let tapTimer = null;
+        document.getElementById('hiddenBackBtn').addEventListener('click', function() {
+            tapCount++;
+            
+            if (tapTimer) {
+                clearTimeout(tapTimer);
+            }
+            
+            if (tapCount >= 5) {
+                goBack();
+                return;
+            }
+            
+            // 2秒以内にタップしなかった場合リセット
+            tapTimer = setTimeout(() => {
+                tapCount = 0;
+            }, 2000);
+        });
+
+        // 桁数に応じたクラスを更新する関数
+        function updateDigitClass(number) {
+            const carNumber = document.getElementById('carNumber');
+            // 既存の桁数クラスをすべて削除
+            carNumber.classList.remove('digits-1', 'digits-2', 'digits-3', 'digits-4');
+            
+            // 桁数を計算
+            const digitCount = number.toString().length;
+            
+            // 桁数に応じたクラスを追加
+            carNumber.classList.add(`digits-${digitCount}`);
+        }
 
         // 車両番号表示を更新
         function updateDisplay(number) {
-            const display = document.getElementById('carNumberDisplay');
+            const display = document.getElementById('carNumber');
             display.textContent = number;
+            updateDigitClass(number);
             
-            // 手動入力フィールドも更新
-            document.getElementById('manualInput').value = number;
-        }
-
-        // 自動カウントダウン開始
-        function startCountdown() {
-            if (isRunning) return;
-            
-            isRunning = true;
-            document.getElementById('statusText').textContent = '自動減少中...';
-            document.getElementById('startBtn').disabled = true;
-            document.getElementById('stopBtn').disabled = false;
-            
-            intervalId = setInterval(async () => {
-                if (currentCarNumber > 0) {
-                    const newNumber = currentCarNumber - 1;
-                    await window.PuzzleSystem.saveCarNumber(newNumber);
-                } else {
-                    stopCountdown();
-                }
+            // 減算アニメーション
+            display.classList.add('countdown');
+            setTimeout(() => {
+                display.classList.remove('countdown');
             }, 1000);
-        }
-
-        // 自動カウントダウン停止
-        function stopCountdown() {
-            if (!isRunning) return;
-            
-            isRunning = false;
-            document.getElementById('statusText').textContent = '停止中';
-            document.getElementById('startBtn').disabled = false;
-            document.getElementById('stopBtn').disabled = true;
-            
-            if (intervalId) {
-                clearInterval(intervalId);
-                intervalId = null;
-            }
-        }
-
-        // リセット
-        async function resetCarNumber() {
-            stopCountdown();
-            await window.PuzzleSystem.saveCarNumber(3600);
-            document.getElementById('statusText').textContent = 'リセット完了';
-        }
-
-        // 手動設定
-        async function setManualNumber() {
-            const input = document.getElementById('manualInput');
-            const number = parseInt(input.value) || 0;
-            await window.PuzzleSystem.saveCarNumber(number);
-            document.getElementById('statusText').textContent = '手動設定完了';
-        }
-
-        // 全画面表示
-        function toggleFullscreen() {
-            const container = document.querySelector('.container');
-            
-            if (!document.fullscreenElement) {
-                container.requestFullscreen().catch(err => {
-                    console.error('フルスクリーン表示に失敗:', err);
-                });
-            } else {
-                document.exitFullscreen();
-            }
         }
 
         // 車両番号の変更を監視
         function watchCarNumberChanges() {
-            unsubscribeCarNumber = window.PuzzleSystem.watchCarNumber((number) => {
-                currentCarNumber = number;
-                updateDisplay(number);
+            unsubscribeCarNumber = db.collection('global').doc('carNumber').onSnapshot((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    currentCarNumber = data.value || 3600;
+                    document.getElementById('carNumber').textContent = currentCarNumber;
+                    updateDigitClass(currentCarNumber);
+                }
+            }, (error) => {
+                console.error('車両番号監視エラー:', error);
             });
         }
 
-        // 戻るボタン
+        // カウントダウン制御の監視
+        function watchCountdownControl() {
+            unsubscribeCountdown = db.collection('global').doc('carNumberCountdown').onSnapshot((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    const isActive = data.active || false;
+                    const interval = data.interval || 1000;
+                    
+                    // 既存のカウントダウンを停止
+                    if (countdownInterval) {
+                        clearInterval(countdownInterval);
+                        countdownInterval = null;
+                    }
+                    
+                    if (isActive) {
+                        // カウントダウン開始
+                        console.log('カウントダウン開始 - 間隔:', interval, 'ミリ秒');
+                        countdownInterval = setInterval(async () => {
+                            if (currentCarNumber > 0) {
+                                currentCarNumber--;
+                                updateDisplay(currentCarNumber);
+                                
+                                // Firebaseに更新
+                                try {
+                                    await db.collection('global').doc('carNumber').set({
+                                        value: currentCarNumber,
+                                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                                    });
+                                } catch (error) {
+                                    console.error('車両番号更新エラー:', error);
+                                }
+                            } else {
+                                // 0になったらカウントダウン停止
+                                clearInterval(countdownInterval);
+                                countdownInterval = null;
+                                try {
+                                    await db.collection('global').doc('carNumberCountdown').set({
+                                        active: false,
+                                        interval: interval
+                                    });
+                                } catch (error) {
+                                    console.error('カウントダウン停止エラー:', error);
+                                }
+                            }
+                        }, interval);
+                    }
+                }
+            }, (error) => {
+                console.error('カウントダウン制御監視エラー:', error);
+            });
+        }
+
+        // Firebaseから車両番号を初期読み込み
+        async function loadCarNumber() {
+            try {
+                const carDoc = await db.collection('global').doc('carNumber').get();
+                if (carDoc.exists) {
+                    currentCarNumber = carDoc.data().value || 3600;
+                    document.getElementById('carNumber').textContent = currentCarNumber;
+                    updateDigitClass(currentCarNumber);
+                }
+            } catch (error) {
+                console.error('車両番号の取得に失敗:', error);
+            }
+        }
+
+        // 戻る処理
         function goBack() {
-            stopCountdown();
             if (unsubscribeCarNumber) {
                 unsubscribeCarNumber();
+            }
+            if (unsubscribeCountdown) {
+                unsubscribeCountdown();
+            }
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
             }
             window.location.href = 'index.html';
         }
@@ -136,26 +475,22 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Firebase接続後に車両番号を読み込み
             setTimeout(async () => {
-                await window.PuzzleSystem.loadCarNumber();
+                await loadCarNumber();
                 watchCarNumberChanges();
+                watchCountdownControl();
             }, 1000);
-            
-            // イベントリスナーを追加
-            document.getElementById('startBtn').addEventListener('click', startCountdown);
-            document.getElementById('stopBtn').addEventListener('click', stopCountdown);
-            document.getElementById('resetBtn').addEventListener('click', resetCarNumber);
-            document.getElementById('setBtn').addEventListener('click', setManualNumber);
-            document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
-            
-            // 初期状態設定
-            document.getElementById('stopBtn').disabled = true;
         });
 
         // ページ離脱時のクリーンアップ
         window.addEventListener('beforeunload', function() {
-            stopCountdown();
             if (unsubscribeCarNumber) {
                 unsubscribeCarNumber();
+            }
+            if (unsubscribeCountdown) {
+                unsubscribeCountdown();
+            }
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
             }
         });
     </script>
