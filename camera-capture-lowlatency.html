@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>低遅延カメラ撮影</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 10px;
+            background-color: #1a1a1a;
+            color: white;
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        
+        .connection-mode {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        
+        .mode-title {
+            color: #4CAF50;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .network-settings {
+            background-color: #333;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        
+        button {
+            padding: 12px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .primary-btn {
+            background-color: #2196F3;
+            color: white;
+        }
+        
+        .success-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .danger-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        .warning-btn {
+            background-color: #FF9800;
+            color: white;
+        }
+        
+        .latency-stats {
+            background-color: #000;
+            color: #0f0;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+        
+        video {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        
+        .status-bar {
+            background-color: #2a2a2a;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin: 10px 0;
+        }
+        
+        .connected {
+            background-color: #2e7d32;
+        }
+        
+        .connecting {
+            background-color: #ef6c00;
+        }
+        
+        .disconnected {
+            background-color: #c62828;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 低遅延カメラ撮影</h1>
+        
+        <div class="status-bar disconnected" id="statusBar">
+            未接続
+        </div>
+        
+        <div class="connection-mode">
+            <div class="mode-title">📡 接続方式選択</div>
+            <button class="primary-btn" id="ethernetMode">🔌 Ethernet直接接続</button>
+            <button class="warning-btn" id="wifiDirectMode">📶 Wi-Fi Direct</button>
+            <button class="success-btn" id="dedicatedRouterMode">🌐 専用ルーター</button>
+        </div>
+        
+        <div class="network-settings" id="networkSettings">
+            <strong>ネットワーク設定：</strong><br>
+            <span id="networkInfo">接続方式を選択してください</span>
+        </div>
+        
+        <div class="controls">
+            <button class="success-btn" id="startCamera">📹 カメラ開始</button>
+            <button class="primary-btn" id="generateId">🆔 配信ID生成</button>
+            <button class="danger-btn" id="stopCamera">⏹️ 停止</button>
+        </div>
+        
+        <div class="latency-stats" id="latencyStats">
+            ⚡ 遅延統計: 準備中...
+        </div>
+        
+        <video id="localVideo" autoplay muted playsinline></video>
+        
+        <div class="network-settings">
+            <strong>配信ID:</strong> <span id="broadcastId">未生成</span><br>
+            <button class="primary-btn" id="copyId">📋 IDコピー</button>
+        </div>
+    </div>
+
+    <script>
+        let localStream = null;
+        let peerConnection = null;
+        let currentMode = null;
+        let broadcastId = null;
+        let latencyMonitor = null;
+        
+        // 超低遅延WebRTC設定
+        const ultraLowLatencyConfig = {
+            iceServers: [
+                // ローカルネットワーク優先
+                { urls: 'stun:192.168.1.1:3478' },
+                // 必要に応じて外部STUNサーバーを無効化
+            ],
+            iceCandidatePoolSize: 0, // 高速化のため削減
+            bundlePolicy: 'balanced',
+            rtcpMuxPolicy: 'require',
+            // 実験的な低遅延設定
+            encodedInsertableStreams: false,
+            forceEncodedAudioInsertableStreams: false,
+            forceEncodedVideoInsertableStreams: false
+        };
+        
+        // 低遅延メディア設定
+        const ultraLowLatencyMedia = {
+            video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                frameRate: { ideal: 30 },
+                facingMode: 'environment',
+                // 低遅延最適化
+                latency: { ideal: 0.01 }, // 10ms目標
+                resizeMode: 'crop-and-scale'
+            },
+            audio: false // 映像のみで遅延最小化
+        };
+        
+        // UI要素
+        const statusBar = document.getElementById('statusBar');
+        const networkInfo = document.getElementById('networkInfo');
+        const latencyStats = document.getElementById('latencyStats');
+        const localVideo = document.getElementById('localVideo');
+        const broadcastIdSpan = document.getElementById('broadcastId');
+        
+        // 接続方式選択
+        document.getElementById('ethernetMode').addEventListener('click', () => {
+            setConnectionMode('ethernet');
+        });
+        
+        document.getElementById('wifiDirectMode').addEventListener('click', () => {
+            setConnectionMode('wifiDirect');
+        });
+        
+        document.getElementById('dedicatedRouterMode').addEventListener('click', () => {
+            setConnectionMode('dedicatedRouter');
+        });
+        
+        // 接続方式設定
+        function setConnectionMode(mode) {
+            currentMode = mode;
+            
+            switch(mode) {
+                case 'ethernet':
+                    networkInfo.innerHTML = `
+                        <strong>Ethernet直接接続</strong><br>
+                        ローカルIP: 192.168.1.1<br>
+                        相手端末: 192.168.1.2<br>
+                        予想遅延: 5-10ms
+                    `;
+                    // STUNサーバーを無効化
+                    ultraLowLatencyConfig.iceServers = [];
+                    break;
+                    
+                case 'wifiDirect':
+                    networkInfo.innerHTML = `
+                        <strong>Wi-Fi Direct</strong><br>
+                        ローカルIP: 192.168.49.1<br>
+                        相手端末: 192.168.49.2<br>
+                        予想遅延: 10-20ms
+                    `;
+                    ultraLowLatencyConfig.iceServers = [];
+                    break;
+                    
+                case 'dedicatedRouter':
+                    networkInfo.innerHTML = `
+                        <strong>専用ルーター</strong><br>
+                        ルーターIP: 192.168.1.1<br>
+                        5GHz帯のみ使用<br>
+                        予想遅延: 15-30ms
+                    `;
+                    ultraLowLatencyConfig.iceServers = [
+                        { urls: 'stun:192.168.1.1:3478' }
+                    ];
+                    break;
+            }
+            
+            statusBar.className = 'status-bar connecting';
+            statusBar.textContent = `${mode}モード設定完了`;
+        }
+        
+        // 配信ID生成
+        document.getElementById('generateId').addEventListener('click', () => {
+            broadcastId = `lowlatency-${Date.now()}`;
+            broadcastIdSpan.textContent = broadcastId;
+        });
+        
+        // IDコピー
+        document.getElementById('copyId').addEventListener('click', () => {
+            if (broadcastId) {
+                navigator.clipboard.writeText(broadcastId);
+                alert('配信IDをコピーしました');
+            }
+        });
+        
+        // カメラ開始
+        document.getElementById('startCamera').addEventListener('click', async () => {
+            try {
+                if (!currentMode) {
+                    alert('接続方式を選択してください');
+                    return;
+                }
+                
+                if (!broadcastId) {
+                    broadcastId = `lowlatency-${Date.now()}`;
+                    broadcastIdSpan.textContent = broadcastId;
+                }
+                
+                localStream = await navigator.mediaDevices.getUserMedia(ultraLowLatencyMedia);
+                localVideo.srcObject = localStream;
+                
+                // WebRTC接続準備
+                await setupWebRTCConnection();
+                
+                statusBar.className = 'status-bar connected';
+                statusBar.textContent = '撮影中 - 低遅延最適化済み';
+                
+                // 遅延監視開始
+                startLatencyMonitoring();
+                
+            } catch (error) {
+                console.error('カメラ開始エラー:', error);
+                alert('カメラアクセスエラー: ' + error.message);
+            }
+        });
+        
+        // WebRTC接続設定
+        async function setupWebRTCConnection() {
+            peerConnection = new RTCPeerConnection(ultraLowLatencyConfig);
+            
+            // 送信者設定で低遅延最適化
+            localStream.getTracks().forEach(async track => {
+                const sender = peerConnection.addTrack(track, localStream);
+                
+                // 低遅延エンコーダー設定
+                if (track.kind === 'video') {
+                    const params = sender.getParameters();
+                    if (params.encodings && params.encodings.length > 0) {
+                        params.encodings[0].maxBitrate = 2000000; // 2Mbps
+                        params.encodings[0].maxFramerate = 30;
+                        params.encodings[0].priority = 'high';
+                        params.encodings[0].networkPriority = 'high';
+                        await sender.setParameters(params);
+                    }
+                }
+            });
+            
+            // 接続状態監視
+            peerConnection.onconnectionstatechange = () => {
+                console.log('接続状態:', peerConnection.connectionState);
+                updateConnectionStatus(peerConnection.connectionState);
+            };
+        }
+        
+        // 接続状態更新
+        function updateConnectionStatus(state) {
+            switch(state) {
+                case 'connected':
+                    statusBar.className = 'status-bar connected';
+                    statusBar.textContent = '接続完了 - 低遅延通信中';
+                    break;
+                case 'connecting':
+                    statusBar.className = 'status-bar connecting';
+                    statusBar.textContent = '接続中...';
+                    break;
+                case 'disconnected':
+                case 'failed':
+                    statusBar.className = 'status-bar disconnected';
+                    statusBar.textContent = '接続切断';
+                    break;
+            }
+        }
+        
+        // 遅延監視
+        function startLatencyMonitoring() {
+            if (!peerConnection) return;
+            
+            latencyMonitor = setInterval(async () => {
+                try {
+                    const stats = await peerConnection.getStats();
+                    let latencyInfo = '';
+                    let bitrate = 0;
+                    let fps = 0;
+                    let rtt = 0;
+                    
+                    stats.forEach(report => {
+                        if (report.type === 'outbound-rtp' && report.kind === 'video') {
+                            fps = report.framesPerSecond || 0;
+                            bitrate = Math.round((report.bytesSent || 0) / 1024);
+                        }
+                        
+                        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                            rtt = Math.round((report.currentRoundTripTime || 0) * 1000);
+                        }
+                    });
+                    
+                    latencyInfo = `
+                        🎯 RTT: ${rtt}ms | 📊 FPS: ${fps} | 🚀 送信: ${bitrate} KB/s
+                        📡 接続: ${currentMode} | 🔗 状態: ${peerConnection.connectionState}
+                    `;
+                    
+                    latencyStats.textContent = latencyInfo;
+                    
+                } catch (error) {
+                    console.error('遅延監視エラー:', error);
+                }
+            }, 1000);
+        }
+        
+        // 停止
+        document.getElementById('stopCamera').addEventListener('click', () => {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+                localVideo.srcObject = null;
+            }
+            
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            
+            if (latencyMonitor) {
+                clearInterval(latencyMonitor);
+                latencyMonitor = null;
+            }
+            
+            statusBar.className = 'status-bar disconnected';
+            statusBar.textContent = '停止済み';
+        });
+        
+        // 初期設定
+        networkInfo.textContent = '接続方式を選択してください';
+        
+        // ページ離脱時クリーンアップ
+        window.addEventListener('beforeunload', () => {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            if (peerConnection) {
+                peerConnection.close();
+            }
+        });
+    </script>
+</body>
+</html> 

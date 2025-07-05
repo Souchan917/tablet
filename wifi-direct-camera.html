@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wi-Fi Direct カメラ撮影</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .connection-status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .status-disconnected {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        
+        .status-connecting {
+            background-color: #fff3e0;
+            color: #ef6c00;
+        }
+        
+        .status-connected {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+        }
+        
+        .controls {
+            margin: 20px 0;
+        }
+        
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .primary-btn {
+            background-color: #2196F3;
+            color: white;
+        }
+        
+        .success-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .danger-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        .info-panel {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        video {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .stats {
+            font-family: monospace;
+            font-size: 12px;
+            background-color: #000;
+            color: #0f0;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Wi-Fi Direct カメラ撮影</h1>
+        
+        <div class="connection-status status-disconnected" id="connectionStatus">
+            未接続
+        </div>
+        
+        <div class="info-panel">
+            <h3>接続手順：</h3>
+            <ol>
+                <li>「Wi-Fi Direct開始」ボタンをタップ</li>
+                <li>相手端末で「Wi-Fi Direct検索」</li>
+                <li>この端末名を選択して接続</li>
+                <li>「カメラ開始」で撮影開始</li>
+            </ol>
+        </div>
+        
+        <div class="controls">
+            <button class="primary-btn" id="startWiFiDirect">Wi-Fi Direct開始</button>
+            <button class="success-btn" id="startCamera" disabled>カメラ開始</button>
+            <button class="danger-btn" id="stopAll">全停止</button>
+        </div>
+        
+        <div class="info-panel">
+            <strong>接続情報：</strong>
+            <div id="connectionInfo">接続待機中...</div>
+        </div>
+        
+        <video id="localVideo" autoplay muted playsinline></video>
+        
+        <div class="stats" id="stats">
+            統計情報：準備中...
+        </div>
+    </div>
+
+    <script>
+        let localStream = null;
+        let peerConnection = null;
+        let isWiFiDirectEnabled = false;
+        let connectionState = 'disconnected';
+        
+        // WebRTC設定（低遅延最適化）
+        const pcConfig = {
+            iceServers: [],  // Wi-Fi Directは直接接続なのでSTUNサーバー不要
+            iceCandidatePoolSize: 10,
+            bundlePolicy: 'balanced',
+            rtcpMuxPolicy: 'require'
+        };
+        
+        // 低遅延設定
+        const mediaConstraints = {
+            video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                frameRate: { ideal: 30 },
+                facingMode: 'environment'
+            },
+            audio: false
+        };
+        
+        // UI要素
+        const statusElement = document.getElementById('connectionStatus');
+        const connectionInfoElement = document.getElementById('connectionInfo');
+        const statsElement = document.getElementById('stats');
+        const localVideo = document.getElementById('localVideo');
+        
+        // ボタン要素
+        const startWiFiDirectBtn = document.getElementById('startWiFiDirect');
+        const startCameraBtn = document.getElementById('startCamera');
+        const stopAllBtn = document.getElementById('stopAll');
+        
+        // 接続状態更新
+        function updateConnectionStatus(status, message) {
+            connectionState = status;
+            statusElement.className = `connection-status status-${status}`;
+            
+            switch(status) {
+                case 'disconnected':
+                    statusElement.textContent = '未接続';
+                    startWiFiDirectBtn.disabled = false;
+                    startCameraBtn.disabled = true;
+                    break;
+                case 'connecting':
+                    statusElement.textContent = '接続中...';
+                    startWiFiDirectBtn.disabled = true;
+                    startCameraBtn.disabled = true;
+                    break;
+                case 'connected':
+                    statusElement.textContent = '接続済み';
+                    startWiFiDirectBtn.disabled = true;
+                    startCameraBtn.disabled = false;
+                    break;
+            }
+            
+            if (message) {
+                connectionInfoElement.textContent = message;
+            }
+        }
+        
+        // Wi-Fi Direct開始（シミュレーション）
+        async function startWiFiDirect() {
+            try {
+                updateConnectionStatus('connecting', 'Wi-Fi Direct検索中...');
+                
+                // 実際の実装では、ここでAndroidのWi-Fi Direct APIを呼び出す
+                // 現在はWebRTCのP2P接続をシミュレート
+                
+                // WebRTC接続の準備
+                peerConnection = new RTCPeerConnection(pcConfig);
+                
+                // 接続状態監視
+                peerConnection.onconnectionstatechange = () => {
+                    console.log('接続状態:', peerConnection.connectionState);
+                    if (peerConnection.connectionState === 'connected') {
+                        updateConnectionStatus('connected', 'Wi-Fi Direct接続成功');
+                        startStatsMonitoring();
+                    }
+                };
+                
+                // ICE候補の処理
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        console.log('ICE候補:', event.candidate);
+                        // 実際の実装では相手端末にICE候補を送信
+                    }
+                };
+                
+                // 模擬的に接続成功
+                setTimeout(() => {
+                    updateConnectionStatus('connected', 'Wi-Fi Direct接続成功 (192.168.49.1)');
+                    isWiFiDirectEnabled = true;
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Wi-Fi Direct開始エラー:', error);
+                updateConnectionStatus('disconnected', `エラー: ${error.message}`);
+            }
+        }
+        
+        // カメラ開始
+        async function startCamera() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+                localVideo.srcObject = localStream;
+                
+                if (peerConnection && localStream) {
+                    localStream.getTracks().forEach(track => {
+                        peerConnection.addTrack(track, localStream);
+                    });
+                }
+                
+                connectionInfoElement.textContent = 'カメラ撮影中 - 相手端末で映像確認してください';
+                
+            } catch (error) {
+                console.error('カメラ開始エラー:', error);
+                alert('カメラアクセスエラー: ' + error.message);
+            }
+        }
+        
+        // 全停止
+        function stopAll() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+                localVideo.srcObject = null;
+            }
+            
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            
+            isWiFiDirectEnabled = false;
+            updateConnectionStatus('disconnected', '接続を終了しました');
+        }
+        
+        // 統計情報監視
+        function startStatsMonitoring() {
+            if (!peerConnection) return;
+            
+            const updateStats = async () => {
+                try {
+                    const stats = await peerConnection.getStats();
+                    let statsText = '';
+                    
+                    stats.forEach(report => {
+                        if (report.type === 'outbound-rtp' && report.kind === 'video') {
+                            statsText += `送信FPS: ${report.framesPerSecond || 0}\n`;
+                            statsText += `送信ビットレート: ${Math.round((report.bytesSent || 0) / 1024)} KB/s\n`;
+                        }
+                        
+                        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                            statsText += `RTT: ${report.currentRoundTripTime || 0}ms\n`;
+                        }
+                    });
+                    
+                    statsElement.textContent = statsText || '統計情報収集中...';
+                } catch (error) {
+                    console.error('統計情報取得エラー:', error);
+                }
+            };
+            
+            // 1秒ごとに統計情報を更新
+            const intervalId = setInterval(updateStats, 1000);
+            
+            // 接続が切れたら停止
+            peerConnection.onconnectionstatechange = () => {
+                if (peerConnection.connectionState === 'disconnected' || 
+                    peerConnection.connectionState === 'failed') {
+                    clearInterval(intervalId);
+                }
+            };
+        }
+        
+        // イベントリスナー
+        startWiFiDirectBtn.addEventListener('click', startWiFiDirect);
+        startCameraBtn.addEventListener('click', startCamera);
+        stopAllBtn.addEventListener('click', stopAll);
+        
+        // 初期状態
+        updateConnectionStatus('disconnected', '接続待機中...');
+        
+        // ページ離脱時のクリーンアップ
+        window.addEventListener('beforeunload', stopAll);
+    </script>
+</body>
+</html> 

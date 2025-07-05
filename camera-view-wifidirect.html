@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wi-Fi Direct カメラ映像</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background-color: #000;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        
+        /* 隠しボタン（左上5回タップ） */
+        .hidden-back-btn {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 80px;
+            height: 80px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            z-index: 1000;
+            opacity: 0;
+        }
+        
+        /* メイン映像コンテナ */
+        .video-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* 映像要素 */
+        #remoteVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background-color: #000;
+        }
+        
+        /* 接続設定パネル（映像表示時は非表示） */
+        .connection-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 100;
+            max-width: 90%;
+            width: 400px;
+        }
+        
+        .connection-panel.hidden {
+            display: none;
+        }
+        
+        .panel-title {
+            color: #64b5f6;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-disconnected { background-color: #f44336; }
+        .status-connecting { background-color: #ff9800; }
+        .status-connected { background-color: #4caf50; }
+        
+        .connection-status {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        
+        button {
+            padding: 12px 20px;
+            margin: 8px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        
+        .btn-primary { background-color: #2196F3; color: white; }
+        .btn-success { background-color: #4CAF50; color: white; }
+        .btn-warning { background-color: #FF9800; color: white; }
+        .btn-danger { background-color: #f44336; color: white; }
+        
+        /* ローディング表示 */
+        .loading-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            text-align: center;
+            z-index: 50;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        
+        .loading-message.hidden {
+            display: none;
+        }
+        
+        /* 接続エラー表示 */
+        .error-message {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(244, 67, 54, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 200;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .error-message.show {
+            opacity: 1;
+        }
+        
+        /* デバイス一覧 */
+        .device-list {
+            background-color: #333;
+            border-radius: 8px;
+            margin: 15px 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .device-item {
+            padding: 12px;
+            border-bottom: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .device-item:hover {
+            background-color: #444;
+        }
+        
+        .device-item:last-child {
+            border-bottom: none;
+        }
+        
+        .device-info {
+            flex: 1;
+            text-align: left;
+        }
+        
+        .device-name {
+            font-weight: bold;
+            color: #fff;
+        }
+        
+        .device-id {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        /* 統計情報（デバッグ用、通常は非表示） */
+        .debug-stats {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #0f0;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 500;
+            opacity: 0;
+        }
+        
+        .debug-stats.show {
+            opacity: 1;
+        }
+        
+        /* レスポンシブ調整 */
+        @media (max-width: 768px) {
+            .connection-panel {
+                width: 90%;
+                padding: 20px;
+            }
+            
+            .panel-title {
+                font-size: 20px;
+            }
+            
+            button {
+                padding: 10px 15px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 隠しボタン（左上5回タップでホーム） -->
+    <button class="hidden-back-btn" id="hiddenBackBtn"></button>
+    
+    <!-- メイン映像表示 -->
+    <div class="video-container">
+        <video id="remoteVideo" autoplay playsinline></video>
+        
+        <!-- ローディングメッセージ -->
+        <div class="loading-message" id="loadingMessage">
+            <div>📡 映像を待機中...</div>
+            <div style="margin-top: 10px; font-size: 14px; color: #ccc;">
+                撮影端末でカメラを開始してください
+            </div>
+        </div>
+        
+        <!-- 接続設定パネル -->
+        <div class="connection-panel" id="connectionPanel">
+            <div class="panel-title">📡 Wi-Fi Direct 映像受信</div>
+            
+            <div class="connection-status">
+                <div id="connectionStatus">
+                    <span class="status-indicator status-disconnected"></span>
+                    未接続
+                </div>
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <button class="btn-primary" id="startWiFiDirect">Wi-Fi Direct開始</button>
+                <button class="btn-warning" id="scanDevices">撮影端末検索</button>
+            </div>
+            
+            <div class="device-list" id="deviceList">
+                <div style="padding: 20px; text-align: center; color: #888;">
+                    検索を開始してください
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button class="btn-success" id="connectSelected">選択した端末に接続</button>
+                <button class="btn-danger" id="disconnect">切断</button>
+            </div>
+            
+            <div style="margin-top: 15px; font-size: 12px; color: #888;">
+                📍 接続手順：<br>
+                1. Wi-Fi Direct開始<br>
+                2. 撮影端末検索<br>
+                3. 端末を選択して接続
+            </div>
+        </div>
+    </div>
+    
+    <!-- エラーメッセージ -->
+    <div class="error-message" id="errorMessage"></div>
+    
+    <!-- デバッグ統計（開発用） -->
+    <div class="debug-stats" id="debugStats">
+        接続状態: 未接続<br>
+        遅延: -- ms<br>
+        受信: -- KB/s<br>
+        FPS: --<br>
+        解像度: --
+    </div>
+
+    <script>
+        // グローバル変数
+        let peerConnection = null;
+        let dataChannel = null;
+        let isWiFiDirectActive = false;
+        let isConnected = false;
+        let selectedDeviceId = null;
+        let statsInterval = null;
+        let connectionTimeout = null;
+        
+        // Wi-Fi Direct設定
+        const wifiDirectConfig = {
+            iceServers: [], // Wi-Fi Directは直接接続
+            iceCandidatePoolSize: 10,
+            bundlePolicy: 'balanced',
+            rtcpMuxPolicy: 'require'
+        };
+        
+        // DOM要素
+        const connectionPanel = document.getElementById('connectionPanel');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const deviceList = document.getElementById('deviceList');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        const debugStats = document.getElementById('debugStats');
+        
+        // 隠しボタン（左上5回タップ）
+        let tapCount = 0;
+        let tapTimer = null;
+        document.getElementById('hiddenBackBtn').addEventListener('click', function() {
+            tapCount++;
+            
+            if (tapTimer) {
+                clearTimeout(tapTimer);
+            }
+            
+            if (tapCount >= 5) {
+                goHome();
+                return;
+            }
+            
+            // 2秒以内にタップしなかった場合リセット
+            tapTimer = setTimeout(() => {
+                tapCount = 0;
+            }, 2000);
+        });
+        
+        // ホームに戻る
+        function goHome() {
+            disconnect();
+            window.location.href = 'index.html';
+        }
+        
+        // 接続状態更新
+        function updateConnectionStatus(status, message) {
+            const indicator = connectionStatus.querySelector('.status-indicator');
+            const statusText = connectionStatus.childNodes[2];
+            
+            indicator.className = `status-indicator status-${status}`;
+            statusText.textContent = message || status;
+        }
+        
+        // エラーメッセージ表示
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+            
+            setTimeout(() => {
+                errorMessage.classList.remove('show');
+            }, 5000);
+        }
+        
+        // Wi-Fi Direct開始
+        async function startWiFiDirect() {
+            try {
+                updateConnectionStatus('connecting', 'Wi-Fi Direct開始中...');
+                
+                // PeerConnection作成
+                peerConnection = new RTCPeerConnection(wifiDirectConfig);
+                
+                // リモートストリーム受信設定
+                peerConnection.ontrack = (event) => {
+                    console.log('リモートストリーム受信:', event.streams[0]);
+                    remoteVideo.srcObject = event.streams[0];
+                    
+                    // パネルを隠して映像を全画面表示
+                    connectionPanel.classList.add('hidden');
+                    loadingMessage.classList.add('hidden');
+                    isConnected = true;
+                    
+                    // 統計情報開始
+                    startStatsMonitoring();
+                };
+                
+                // データチャネル受信
+                peerConnection.ondatachannel = (event) => {
+                    dataChannel = event.channel;
+                    console.log('データチャネル受信:', dataChannel);
+                    
+                    dataChannel.onopen = () => {
+                        console.log('データチャネル開通');
+                        updateConnectionStatus('connected', '映像受信準備完了');
+                    };
+                    
+                    dataChannel.onmessage = (event) => {
+                        console.log('メッセージ受信:', event.data);
+                    };
+                };
+                
+                // 接続状態監視
+                peerConnection.onconnectionstatechange = () => {
+                    console.log('接続状態変更:', peerConnection.connectionState);
+                    
+                    switch(peerConnection.connectionState) {
+                        case 'connected':
+                            updateConnectionStatus('connected', '映像受信中');
+                            loadingMessage.classList.add('hidden');
+                            break;
+                        case 'disconnected':
+                        case 'failed':
+                            updateConnectionStatus('disconnected', '接続が切断されました');
+                            showError('接続が切断されました');
+                            resetVideoDisplay();
+                            break;
+                        case 'connecting':
+                            updateConnectionStatus('connecting', '接続中...');
+                            break;
+                    }
+                };
+                
+                // ICE候補処理
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        console.log('ICE候補:', event.candidate);
+                        // 実際の実装では送信端末に送信
+                    }
+                };
+                
+                isWiFiDirectActive = true;
+                updateConnectionStatus('connected', 'Wi-Fi Direct準備完了');
+                
+                // 模擬的なデバイス検索結果を表示
+                setTimeout(() => {
+                    addMockDevices();
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Wi-Fi Direct開始エラー:', error);
+                updateConnectionStatus('disconnected', `エラー: ${error.message}`);
+                showError('Wi-Fi Direct開始に失敗しました');
+            }
+        }
+        
+        // デバイス検索
+        function scanDevices() {
+            if (!isWiFiDirectActive) {
+                showError('まずWi-Fi Directを開始してください');
+                return;
+            }
+            
+            deviceList.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">検索中...</div>';
+            
+            // 模擬的なデバイス検索
+            setTimeout(() => {
+                addMockDevices();
+            }, 2000);
+        }
+        
+        // 模擬デバイス追加
+        function addMockDevices() {
+            const mockDevices = [
+                { id: 'camera001', name: 'スタッフ用カメラ端末', type: 'Android', signal: '強' },
+                { id: 'phone001', name: 'Samsung Galaxy S21', type: 'Android', signal: '中' },
+                { id: 'iphone001', name: 'iPhone 13 Pro', type: 'iOS', signal: '弱' }
+            ];
+            
+            deviceList.innerHTML = '';
+            mockDevices.forEach(device => {
+                const deviceItem = document.createElement('div');
+                deviceItem.className = 'device-item';
+                deviceItem.innerHTML = `
+                    <div class="device-info">
+                        <div class="device-name">${device.name}</div>
+                        <div class="device-id">${device.type} - 信号: ${device.signal}</div>
+                    </div>
+                    <button class="btn-primary" onclick="selectDevice('${device.id}', '${device.name}')">選択</button>
+                `;
+                deviceList.appendChild(deviceItem);
+            });
+        }
+        
+        // デバイス選択
+        function selectDevice(deviceId, deviceName) {
+            selectedDeviceId = deviceId;
+            
+            // 選択状態を視覚的に表示
+            document.querySelectorAll('.device-item').forEach(item => {
+                item.style.background = '#333';
+            });
+            
+            event.target.closest('.device-item').style.background = '#2196F3';
+            
+            console.log('デバイス選択:', deviceId, deviceName);
+        }
+        
+        // 選択したデバイスに接続
+        async function connectToSelected() {
+            if (!selectedDeviceId) {
+                showError('デバイスを選択してください');
+                return;
+            }
+            
+            if (!isWiFiDirectActive) {
+                showError('Wi-Fi Directが開始されていません');
+                return;
+            }
+            
+            try {
+                updateConnectionStatus('connecting', '撮影端末に接続中...');
+                
+                // 接続タイムアウト設定
+                connectionTimeout = setTimeout(() => {
+                    showError('接続がタイムアウトしました');
+                    updateConnectionStatus('disconnected', '接続タイムアウト');
+                }, 15000);
+                
+                // 模擬的な接続成功
+                setTimeout(() => {
+                    if (connectionTimeout) {
+                        clearTimeout(connectionTimeout);
+                        connectionTimeout = null;
+                    }
+                    
+                    updateConnectionStatus('connected', '映像受信準備完了');
+                    loadingMessage.classList.remove('hidden');
+                    loadingMessage.innerHTML = `
+                        <div>📡 ${selectedDeviceId} に接続しました</div>
+                        <div style="margin-top: 10px; font-size: 14px; color: #ccc;">
+                            撮影端末でカメラを開始してください
+                        </div>
+                    `;
+                    
+                    // 模擬的な映像ストリーム受信
+                    setTimeout(() => {
+                        simulateVideoReceive();
+                    }, 3000);
+                    
+                }, 2000);
+                
+            } catch (error) {
+                console.error('接続エラー:', error);
+                showError('接続に失敗しました: ' + error.message);
+                updateConnectionStatus('disconnected', '接続失敗');
+            }
+        }
+        
+        // 映像受信シミュレーション
+        function simulateVideoReceive() {
+            // 実際の実装では、PeerConnectionからのストリームを受信
+            // ここでは模擬的にカメラストリームを表示
+            navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+                .then(stream => {
+                    remoteVideo.srcObject = stream;
+                    connectionPanel.classList.add('hidden');
+                    loadingMessage.classList.add('hidden');
+                    isConnected = true;
+                    
+                    // デバッグ統計表示
+                    debugStats.classList.add('show');
+                    startStatsMonitoring();
+                })
+                .catch(error => {
+                    console.error('模擬映像エラー:', error);
+                    showError('映像の取得に失敗しました');
+                });
+        }
+        
+        // 映像表示リセット
+        function resetVideoDisplay() {
+            if (remoteVideo.srcObject) {
+                remoteVideo.srcObject.getTracks().forEach(track => track.stop());
+                remoteVideo.srcObject = null;
+            }
+            
+            connectionPanel.classList.remove('hidden');
+            loadingMessage.classList.remove('hidden');
+            loadingMessage.innerHTML = `
+                <div>📡 映像を待機中...</div>
+                <div style="margin-top: 10px; font-size: 14px; color: #ccc;">
+                    撮影端末でカメラを開始してください
+                </div>
+            `;
+            
+            isConnected = false;
+            debugStats.classList.remove('show');
+            
+            if (statsInterval) {
+                clearInterval(statsInterval);
+                statsInterval = null;
+            }
+        }
+        
+        // 統計情報監視
+        function startStatsMonitoring() {
+            if (statsInterval) {
+                clearInterval(statsInterval);
+            }
+            
+            statsInterval = setInterval(async () => {
+                if (!peerConnection || !isConnected) return;
+                
+                try {
+                    const stats = await peerConnection.getStats();
+                    let fps = 0;
+                    let bitrate = 0;
+                    let rtt = 0;
+                    let resolution = '';
+                    
+                    stats.forEach(report => {
+                        if (report.type === 'inbound-rtp' && report.kind === 'video') {
+                            fps = report.framesPerSecond || 0;
+                            bitrate = Math.round((report.bytesReceived || 0) / 1024);
+                            if (report.frameWidth && report.frameHeight) {
+                                resolution = `${report.frameWidth}x${report.frameHeight}`;
+                            }
+                        }
+                        
+                        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                            rtt = Math.round((report.currentRoundTripTime || 0) * 1000);
+                        }
+                    });
+                    
+                    debugStats.innerHTML = `
+接続状態: ${peerConnection.connectionState}<br>
+遅延: ${rtt} ms<br>
+受信: ${bitrate} KB/s<br>
+FPS: ${fps}<br>
+解像度: ${resolution}
+                    `;
+                    
+                } catch (error) {
+                    console.error('統計情報取得エラー:', error);
+                }
+            }, 1000);
+        }
+        
+        // 切断
+        function disconnect() {
+            if (connectionTimeout) {
+                clearTimeout(connectionTimeout);
+                connectionTimeout = null;
+            }
+            
+            if (remoteVideo.srcObject) {
+                remoteVideo.srcObject.getTracks().forEach(track => track.stop());
+                remoteVideo.srcObject = null;
+            }
+            
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            
+            if (dataChannel) {
+                dataChannel.close();
+                dataChannel = null;
+            }
+            
+            if (statsInterval) {
+                clearInterval(statsInterval);
+                statsInterval = null;
+            }
+            
+            isWiFiDirectActive = false;
+            isConnected = false;
+            selectedDeviceId = null;
+            
+            resetVideoDisplay();
+            updateConnectionStatus('disconnected', 'Wi-Fi Direct切断済み');
+            
+            deviceList.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">検索を開始してください</div>';
+        }
+        
+        // イベントリスナー
+        document.getElementById('startWiFiDirect').addEventListener('click', startWiFiDirect);
+        document.getElementById('scanDevices').addEventListener('click', scanDevices);
+        document.getElementById('connectSelected').addEventListener('click', connectToSelected);
+        document.getElementById('disconnect').addEventListener('click', disconnect);
+        
+        // 全画面表示時のキーボードイベント
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && isConnected) {
+                // Escキーで接続パネルを一時表示
+                connectionPanel.classList.toggle('hidden');
+            }
+        });
+        
+        // 初期状態
+        updateConnectionStatus('disconnected', 'Wi-Fi Direct未開始');
+        
+        // ページ離脱時のクリーンアップ
+        window.addEventListener('beforeunload', () => {
+            disconnect();
+        });
+        
+        // エラーハンドリング
+        window.addEventListener('error', (event) => {
+            console.error('グローバルエラー:', event.error);
+            showError('予期しないエラーが発生しました');
+        });
+    </script>
+</body>
+</html> 
