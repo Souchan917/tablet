@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>車両番号前 - 謎解きシステム</title>
+    <title>車両番号後 - 謎解きシステム</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
@@ -431,8 +431,8 @@
             <div class="train-car-frame">
                 <div class="noise-overlay" id="noiseOverlay">
                     <div class="noise-text">ACCESS DENIED</div>
-        </div>
-        
+                </div>
+                
                 <div class="train-emblem">
                     <div class="emblem-inner">
                         <span class="emblem-text">GATANGO TRAIN</span>
@@ -441,9 +441,9 @@
                 <div class="car-number-container">
                     <div class="car-number digits-4" id="carNumber">3600</div>
                     <div class="car-suffix">号車</div>
-        </div>
+                </div>
                 <div class="car-name">GATANGO</div>
-        </div>
+            </div>
         </div>
     </div>
 
@@ -592,9 +592,9 @@
             });
         }
 
-        // 選択されたチームを監視
+        // 選択されたチームを監視（後用）
         function watchSelectedTeam() {
-            unsubscribeSelectedTeam = db.collection('monitor-front').doc('selectedTeam').onSnapshot((doc) => {
+            unsubscribeSelectedTeam = db.collection('monitor-back').doc('selectedTeam').onSnapshot((doc) => {
                 if (doc.exists) {
                     selectedTeamData = doc.data();
                     console.log('選択チーム更新:', selectedTeamData);
@@ -609,9 +609,9 @@
             });
         }
 
-        // チーム進捗を監視
+        // チーム進捗を監視（後用）
         function watchTeamProgress() {
-            unsubscribeTeamProgress = db.collection('tabletTeamsFront').onSnapshot((snapshot) => {
+            unsubscribeTeamProgress = db.collection('tabletTeamsBack').onSnapshot((snapshot) => {
                 if (selectedTeamData) {
                     checkStep4Status();
                 }
@@ -620,7 +620,7 @@
             });
         }
 
-        // ステップ4のクリア状況をチェック
+        // ステップ4のクリア状況をチェック（後用）
         async function checkStep4Status() {
             if (!selectedTeamData) {
                 isStep4Cleared = false;
@@ -629,12 +629,12 @@
             }
 
             try {
-                const teamDoc = await db.collection('tabletTeamsFront').doc(selectedTeamData.teamId.toString()).get();
+                const teamDoc = await db.collection('tabletTeamsBack').doc(selectedTeamData.teamId.toString()).get();
                 if (teamDoc.exists) {
                     const progress = teamDoc.data().progress || [];
                     // ステップ4（インデックス3）がクリアされているかチェック
                     isStep4Cleared = progress[3] === true;
-            } else {
+                } else {
                     isStep4Cleared = false;
                 }
                 updateNoiseDisplay();

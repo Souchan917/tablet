@@ -17,6 +17,7 @@
             min-height: 100vh;
             color: #333;
             line-height: 1.6;
+            overflow: hidden;
         }
 
         .back-btn {
@@ -40,49 +41,69 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 40px 20px;
+            padding: 20px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         h1 {
             text-align: center;
             color: white;
-            font-size: 2.5rem;
-            margin-bottom: 40px;
+            font-size: 2rem;
+            margin-bottom: 20px;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .content-wrapper {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .left-panel {
+            flex: 1;
+            min-width: 600px;
+        }
+
+        .right-panel {
+            flex: 1;
+            min-width: 600px;
         }
 
         .master-controls {
             background: rgba(255, 255, 255, 0.95);
             border-radius: 15px;
-            padding: 30px;
+            padding: 20px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
 
         .master-controls h3 {
             color: #333;
-            margin-bottom: 20px;
-            font-size: 1.5rem;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
             border-bottom: 3px solid #667eea;
-            padding-bottom: 10px;
+            padding-bottom: 8px;
         }
 
         .car-number-controls {
             display: flex;
-            gap: 15px;
+            gap: 10px;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             flex-wrap: wrap;
         }
 
         .car-number-input {
-            width: 120px;
-            padding: 12px;
+            width: 100px;
+            padding: 8px;
             border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 20px;
+            border-radius: 6px;
+            font-size: 16px;
             text-align: center;
             font-weight: bold;
             background: #f9f9f9;
@@ -91,25 +112,25 @@
         .car-number-input:focus {
             outline: none;
             border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
         }
 
         .control-btn {
-            padding: 12px 24px;
+            padding: 8px 16px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            border-radius: 8px;
-            font-size: 16px;
+            border-radius: 6px;
+            font-size: 14px;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
         }
 
         .control-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
 
         .control-btn:active {
@@ -118,77 +139,76 @@
 
         .control-btn.start {
             background: linear-gradient(135deg, #00d2d3 0%, #54a0ff 100%);
-            box-shadow: 0 4px 15px rgba(0, 210, 211, 0.3);
+            box-shadow: 0 3px 10px rgba(0, 210, 211, 0.3);
         }
 
         .control-btn.start:hover {
-            box-shadow: 0 6px 20px rgba(0, 210, 211, 0.4);
+            box-shadow: 0 5px 15px rgba(0, 210, 211, 0.4);
         }
 
         .control-btn.stop {
             background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
-            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+            box-shadow: 0 3px 10px rgba(255, 107, 107, 0.3);
         }
 
         .control-btn.stop:hover {
-            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
         }
 
         .control-btn.apply {
             background: linear-gradient(135deg, #feca57 0%, #ff9ff3 100%);
             color: #333;
-            box-shadow: 0 4px 15px rgba(254, 202, 87, 0.3);
+            box-shadow: 0 3px 10px rgba(254, 202, 87, 0.3);
         }
 
         .control-btn.apply:hover {
-            box-shadow: 0 6px 20px rgba(254, 202, 87, 0.4);
+            box-shadow: 0 5px 15px rgba(254, 202, 87, 0.4);
         }
 
         .car-number-display {
             background: linear-gradient(135deg, #f0f0f0 0%, #e8e8e8 100%);
-            padding: 20px;
-            border-radius: 12px;
-            border-left: 6px solid #667eea;
-            font-size: 24px;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 5px solid #667eea;
+            font-size: 18px;
             font-weight: bold;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             text-align: center;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
         }
 
         .time-controls {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             flex-wrap: wrap;
         }
 
         .time-input {
-            width: 100px;
-            padding: 10px;
+            width: 80px;
+            padding: 6px;
             border: 2px solid #ddd;
-            border-radius: 6px;
+            border-radius: 4px;
             text-align: center;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
         }
 
         .time-input:focus {
             outline: none;
             border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
         }
 
         .status-display {
             background: linear-gradient(135deg, #e8f4f8 0%, #d6f5f7 100%);
-            padding: 15px 20px;
-            border-radius: 12px;
-            border-left: 6px solid #00d2d3;
+            padding: 12px 15px;
+            border-radius: 10px;
+            border-left: 5px solid #00d2d3;
             font-weight: bold;
-            margin-bottom: 20px;
-            font-size: 18px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            font-size: 14px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
         }
 
         .status-display.active {
@@ -200,114 +220,176 @@
         .progress-container {
             background: rgba(255, 255, 255, 0.95);
             border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        }
-
-        .team-progress {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .team-card {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border: 1px solid #dee2e6;
-            border-radius: 12px;
             padding: 20px;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        }
-
-        .team-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .team-card h3 {
-            margin-bottom: 15px;
-            color: #495057;
-            font-size: 1.2rem;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 20px;
-            background: #e9ecef;
-            border-radius: 10px;
-            overflow: hidden;
-            margin-bottom: 10px;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            transition: width 0.5s ease;
-            border-radius: 10px;
-        }
-
-        .progress-info {
-            margin-bottom: 15px;
-            font-weight: bold;
-            color: #495057;
-        }
-
-        .team-controls {
-            display: flex;
-            gap: 10px;
-        }
-
-        .team-controls .control-btn {
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             flex: 1;
-            padding: 10px 16px;
-            font-size: 14px;
-        }
-
-        .global-controls {
             display: flex;
-            gap: 20px;
-            justify-content: center;
-            flex-wrap: wrap;
+            flex-direction: column;
+            overflow: hidden;
         }
 
-        .global-controls .control-btn {
-            padding: 15px 30px;
-            font-size: 18px;
+        .progress-container h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 8px;
+        }
+
+        .teams-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            overflow: hidden;
+        }
+
+        .team-row {
+            display: flex;
+            align-items: center;
+            background: #f8f9fa;
+            border-radius: 3px;
+            padding: 2px;
+            height: calc((100% - 50px) / 10);
+            min-height: 28px;
+            border: 1px solid #e9ecef;
+            margin-bottom: 1px;
+        }
+
+        .team-label {
+            background: #888;
+            color: #000;
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-weight: bold;
+            min-width: 45px;
+            text-align: center;
+            margin-right: 3px;
+            font-size: 9px;
+        }
+
+        .team-label.selected {
+            background: #4CAF50;
+            color: white;
+            box-shadow: 0 0 3px rgba(76, 175, 80, 0.5);
+        }
+
+        .step-label {
+            background: #ffcc00;
+            color: #000;
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-weight: bold;
+            min-width: 45px;
+            text-align: center;
+            margin-right: 3px;
+            font-size: 9px;
+        }
+
+        .steps-container {
+            display: flex;
+            gap: 1px;
+            flex: 1;
+        }
+
+        .step-btn {
+            background: #ffcc00;
+            color: #000;
+            border: none;
+            padding: 2px 3px;
+            border-radius: 2px;
+            font-weight: bold;
+            font-size: 8px;
+            flex: 1;
+            min-height: 20px;
+            cursor: default;
+        }
+
+        .step-btn.completed {
+            background: #ffcc00;
+            box-shadow: 0 0 4px rgba(255, 204, 0, 0.5);
+        }
+
+        .step-btn.current {
+            background: #90EE90;
+            color: #000;
+            box-shadow: 0 0 4px rgba(144, 238, 144, 0.5);
+        }
+
+        .step-btn.disabled {
+            background: #555;
+            color: #888;
+            opacity: 0.5;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 5px;
+            padding: 4px;
+            background: #f8f9fa;
+            border-radius: 3px;
+            border: 1px solid #e9ecef;
+        }
+
+        .stat-item {
+            text-align: center;
+            flex: 1;
+        }
+
+        .stat-number {
+            font-size: 1em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.6em;
+            color: #666;
         }
 
         .input-group {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 10px;
+            gap: 8px;
+            margin-bottom: 8px;
         }
 
         .input-group label {
             font-weight: bold;
-            min-width: 120px;
+            min-width: 100px;
             color: #555;
+            font-size: 13px;
+        }
+
+        @media (max-width: 1200px) {
+            .content-wrapper {
+                flex-direction: column;
+            }
+            
+            .left-panel, .right-panel {
+                min-width: auto;
+                flex: none;
+            }
+            
+            .progress-container {
+                height: 300px;
+            }
         }
 
         @media (max-width: 768px) {
             .container {
-                padding: 20px 10px;
+                padding: 15px 10px;
             }
             
             h1 {
-                font-size: 2rem;
+                font-size: 1.5rem;
             }
             
             .car-number-controls,
             .time-controls {
                 flex-direction: column;
                 align-items: stretch;
-            }
-            
-            .global-controls {
-                flex-direction: column;
-                align-items: center;
             }
 
             .input-group {
@@ -327,48 +409,65 @@
     <div class="container">
         <h1>MASTER 制御画面</h1>
         
-        <!-- 車両番号制御 -->
+        <div class="content-wrapper">
+            <!-- 左パネル：車両番号制御 -->
+            <div class="left-panel">
         <div class="master-controls">
-            <h3>🚃 車両番号制御（全チーム共通）</h3>
-            
+                    <h3>🚃 車両番号制御（全チーム共通）</h3>
+                    
             <div class="car-number-display">
                 現在の車両番号: <span id="currentCarNumber">3600</span>
             </div>
-            
-            <div class="car-number-controls">
-                <button class="control-btn start" id="startCountdownBtn">スタート</button>
-                <button class="control-btn stop" id="stopCountdownBtn">ストップ</button>
-                <div class="input-group">
-                    <label for="setTimeInput">時間設定:</label>
-                    <input type="number" id="setTimeInput" class="car-number-input" value="3600" min="0" max="9999">
-                </div>
-                <button class="control-btn apply" id="applyTimeBtn">時間適用</button>
-            </div>
-            
-            <div class="time-controls">
-                <div class="input-group">
-                    <label for="secondDurationInput">1秒の長さ:</label>
-                    <input type="number" id="secondDurationInput" class="time-input" value="1.0" min="0.1" max="10.0" step="0.1">
-                    <span>秒</span>
-                </div>
-                <button class="control-btn" id="applyDurationBtn">時間適用</button>
-            </div>
-            
-            <div class="status-display" id="countdownStatus">
-                カウントダウン停止中
-            </div>
+                    
+                    <div class="car-number-controls">
+                        <button class="control-btn start" id="startCountdownBtn">スタート</button>
+                        <button class="control-btn stop" id="stopCountdownBtn">ストップ</button>
+                        <div class="input-group">
+                            <label for="setTimeInput">時間設定:</label>
+                            <input type="number" id="setTimeInput" class="car-number-input" value="3600" min="0" max="9999">
+                        </div>
+                        <button class="control-btn apply" id="applyTimeBtn">時間適用</button>
+                    </div>
+                    
+                    <div class="time-controls">
+                        <div class="input-group">
+                            <label for="secondDurationInput">1秒の長さ:</label>
+                            <input type="number" id="secondDurationInput" class="time-input" value="1.0" min="0.1" max="10.0" step="0.1">
+                            <span>秒</span>
+                        </div>
+                        <button class="control-btn" id="applyDurationBtn">時間適用</button>
         </div>
         
-        <!-- チーム進捗制御 -->
-        <div class="progress-container">
-            <h3>📊 チーム進捗管理</h3>
-            <div class="team-progress" id="teamProgress">
-                <!-- チーム進捗バーはJavaScriptで生成 -->
+                    <div class="status-display" id="countdownStatus">
+                        カウントダウン停止中
+                    </div>
+                </div>
             </div>
             
-            <div class="global-controls">
-                <button class="control-btn" id="nextAllBtn">全チーム Next</button>
-                <button class="control-btn" id="backAllBtn">全チーム Back</button>
+            <!-- 右パネル：進捗管理（読み取り専用） -->
+            <div class="right-panel">
+                <div class="progress-container">
+                    <h3>📊 チーム進捗管理（読み取り専用）</h3>
+                    
+                    <div class="teams-container" id="teamsContainer">
+                        <!-- チーム行はJavaScriptで生成 -->
+                    </div>
+
+                    <div class="stats">
+                        <div class="stat-item">
+                            <div class="stat-number" id="totalCompleted">0</div>
+                            <div class="stat-label">完了ステップ総数</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="averageProgress">0</div>
+                            <div class="stat-label">平均進捗率(%)</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="completedTeams">0</div>
+                            <div class="stat-label">完了チーム数</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -381,81 +480,148 @@
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        let teams = [];
-        let unsubscribeTeams = null;
         let unsubscribeCarNumber = null;
         let unsubscribeCountdown = null;
+        let unsubscribeTeamProgress = null;
         let currentCarNumber = 3600;
         let countdownActive = false;
         let secondDuration = 1.0; // 1秒の長さ（秒）
 
-        // チーム進捗バーを生成
-        function createTeamProgressBars() {
-            const container = document.getElementById('teamProgress');
+        // 進捗データ
+        let teamProgress = {};
+        const totalSteps = 8;
+        const totalTeams = 10;
+        let currentSelectedTeamId = null;
+
+        // チーム進捗表示を生成
+        function createTeamProgressDisplay() {
+            const container = document.getElementById('teamsContainer');
             container.innerHTML = '';
             
-            for (let i = 1; i <= 10; i++) {
-                const teamCard = document.createElement('div');
-                teamCard.className = 'team-card';
-                teamCard.innerHTML = `
-                    <h3>チーム${i}</h3>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progress-${i}" style="width: 0%"></div>
-                    </div>
-                    <div class="progress-info">
-                        <span id="progress-text-${i}">0/10</span>
-                    </div>
-                    <div class="team-controls">
-                        <button class="control-btn" onclick="updateTeamProgress(${i}, -1)">Back</button>
-                        <button class="control-btn" onclick="updateTeamProgress(${i}, 1)">Next</button>
-                    </div>
-                `;
-                container.appendChild(teamCard);
-            }
-        }
-
-        // チーム進捗を更新
-        async function updateTeamProgress(teamId, delta) {
-            const team = teams.find(t => t.id === teamId);
-            if (!team) return;
-            
-            const newProgress = Math.max(0, Math.min(team.maxProgress, team.progress + delta));
-            if (newProgress !== team.progress) {
-                team.progress = newProgress;
-                await saveTeamProgress(teamId, newProgress);
-                updateProgressDisplay(teamId, newProgress, team.maxProgress);
-            }
-        }
-
-        // 進捗バーの表示を更新
-        function updateProgressDisplay(teamId, progress, maxProgress) {
-            const progressFill = document.getElementById(`progress-${teamId}`);
-            const progressText = document.getElementById(`progress-text-${teamId}`);
-            
-            if (progressFill && progressText) {
-                const percentage = (progress / maxProgress) * 100;
-                progressFill.style.width = `${percentage}%`;
-                progressText.textContent = `${progress}/${maxProgress}`;
-            }
-        }
-
-        // 全チームの進捗を更新
-        async function updateAllTeams(delta) {
-            const promises = teams.map(team => {
-                const newProgress = Math.max(0, Math.min(team.maxProgress, team.progress + delta));
-                if (newProgress !== team.progress) {
-                    team.progress = newProgress;
-                    return saveTeamProgress(team.id, newProgress);
+            for (let i = 1; i <= totalTeams; i++) {
+                const teamRow = document.createElement('div');
+                teamRow.className = 'team-row';
+                
+                const teamLabel = document.createElement('div');
+                teamLabel.className = 'team-label';
+                teamLabel.textContent = `チーム${i}`;
+                teamLabel.id = `team-label-${i}`;
+                
+                const stepLabel = document.createElement('div');
+                stepLabel.className = 'step-label';
+                stepLabel.textContent = 'STEP1';
+                stepLabel.id = `step-label-${i}`;
+                
+                const stepsContainer = document.createElement('div');
+                stepsContainer.className = 'steps-container';
+                
+                for (let j = 1; j <= totalSteps; j++) {
+                    const stepBtn = document.createElement('button');
+                    stepBtn.className = 'step-btn disabled';
+                    stepBtn.textContent = j;
+                    stepBtn.id = `step-${i}-${j}`;
+                    stepsContainer.appendChild(stepBtn);
                 }
-                return Promise.resolve();
-            });
+                
+                teamRow.appendChild(teamLabel);
+                teamRow.appendChild(stepLabel);
+                teamRow.appendChild(stepsContainer);
+                container.appendChild(teamRow);
+            }
+        }
+
+        // 現在のステップを取得
+        function getCurrentStep(teamId) {
+            if (!teamProgress[teamId]) return 1;
+            const progress = teamProgress[teamId];
+            let currentStep = 1;
+            for (let i = 0; i < progress.length; i++) {
+                if (progress[i]) {
+                    currentStep = i + 2; // 次のステップ
+                }
+            }
+            return Math.min(currentStep, totalSteps);
+        }
+
+        // ステップラベルを更新
+        function updateStepLabel(teamId) {
+            const currentStep = getCurrentStep(teamId);
+            const stepLabel = document.getElementById(`step-label-${teamId}`);
+            if (stepLabel) {
+                if (currentStep > totalSteps) {
+                    stepLabel.textContent = 'COMPLETE';
+                } else {
+                    stepLabel.textContent = `STEP${currentStep}`;
+                }
+            }
+        }
+
+        // 全てのボタンの状態を更新
+        function updateAllButtons() {
+            for (let teamId = 1; teamId <= totalTeams; teamId++) {
+                if (!teamProgress[teamId]) {
+                    teamProgress[teamId] = Array(totalSteps).fill(false);
+                }
+                
+                const progress = teamProgress[teamId];
+                const currentStep = getCurrentStep(teamId);
+                
+                // ステップラベル更新
+                updateStepLabel(teamId);
+                
+                // 選択状態の更新
+                const teamLabel = document.getElementById(`team-label-${teamId}`);
+                if (teamLabel) {
+                    if (currentSelectedTeamId === teamId) {
+                        teamLabel.classList.add('selected');
+                    } else {
+                        teamLabel.classList.remove('selected');
+                    }
+                }
+                
+                // ステップボタンの状態更新
+                for (let step = 1; step <= totalSteps; step++) {
+                    const button = document.getElementById(`step-${teamId}-${step}`);
+                    if (button) {
+                        button.classList.remove('completed', 'current', 'disabled');
+                        
+                        if (progress[step - 1]) {
+                            // 完了済み
+                            button.classList.add('completed');
+                        } else if (step === currentStep) {
+                            // 現在のステップ
+                            button.classList.add('current');
+                        } else {
+                            // 無効
+                            button.classList.add('disabled');
+                        }
+                    }
+                }
+            }
+            updateStats();
+        }
+
+        // 統計情報を更新
+        function updateStats() {
+            let totalCompleted = 0;
+            let completedTeams = 0;
             
-            await Promise.all(promises);
+            for (let teamId = 1; teamId <= totalTeams; teamId++) {
+                if (teamProgress[teamId]) {
+                    const completedInTeam = teamProgress[teamId].filter(step => step).length;
+                    totalCompleted += completedInTeam;
+                    
+                    if (completedInTeam === totalSteps) {
+                        completedTeams++;
+                    }
+                }
+            }
             
-            // 表示を更新
-            teams.forEach(team => {
-                updateProgressDisplay(team.id, team.progress, team.maxProgress);
-            });
+            const averageProgress = Math.round((totalCompleted / (totalTeams * totalSteps)) * 100);
+            
+            document.getElementById('totalCompleted').textContent = totalCompleted;
+            document.getElementById('averageProgress').textContent = averageProgress;
+            document.getElementById('completedTeams').textContent = completedTeams;
         }
 
         // 車両番号表示を更新
@@ -499,7 +665,7 @@
         async function applyTime() {
             try {
                 const newTime = parseInt(document.getElementById('setTimeInput').value) || 0;
-                await db.collection('global').doc('carNumber').set({
+                await db.collection('global').doc('carNumberManual').set({
                     value: newTime,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
@@ -544,35 +710,9 @@
             }
         }
 
-        // Firebase保存関数
-        async function saveTeamProgress(teamId, progress) {
-            try {
-                await db.collection('teams').doc(`team${teamId}`).set({
-                    progress: progress,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
-            } catch (error) {
-                console.error('進捗保存エラー:', error);
-            }
-        }
-
         // Firebase監視関数
-        function watchTeamChanges() {
-            unsubscribeTeams = db.collection('teams').onSnapshot((snapshot) => {
-                snapshot.docs.forEach(doc => {
-                    const data = doc.data();
-                    const teamId = parseInt(doc.id.replace('team', ''));
-                    const team = teams.find(t => t.id === teamId);
-                    if (team) {
-                        team.progress = data.progress || 0;
-                        updateProgressDisplay(teamId, team.progress, team.maxProgress);
-                    }
-                });
-            });
-        }
-
         function watchCarNumberChanges() {
-            unsubscribeCarNumber = db.collection('global').doc('carNumber').onSnapshot((doc) => {
+            unsubscribeCarNumber = db.collection('global').doc('carNumberManual').onSnapshot((doc) => {
                 if (doc.exists) {
                     const data = doc.data();
                     currentCarNumber = data.value || 3600;
@@ -594,47 +734,59 @@
             });
         }
 
+        function watchTeamProgressChanges() {
+            unsubscribeTeamProgress = db.collection('tabletTeamsFront').onSnapshot((snapshot) => {
+                snapshot.docs.forEach(doc => {
+                    const teamId = parseInt(doc.id);
+                    const data = doc.data();
+                    if (data.progress && Array.isArray(data.progress)) {
+                        teamProgress[teamId] = data.progress;
+                    }
+                });
+                updateAllButtons();
+            });
+
+            // 選択されたチームの監視
+            db.collection('monitor-front').doc('selectedTeam').onSnapshot((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    currentSelectedTeamId = data.teamId || null;
+                    updateAllButtons();
+                }
+            });
+        }
+
         // 戻るボタン
         function goBack() {
-            if (unsubscribeTeams) {
-                unsubscribeTeams();
-            }
             if (unsubscribeCarNumber) {
                 unsubscribeCarNumber();
             }
             if (unsubscribeCountdown) {
                 unsubscribeCountdown();
             }
+            if (unsubscribeTeamProgress) {
+                unsubscribeTeamProgress();
+            }
             window.location.href = 'index.html';
         }
 
         // 初期化
         document.addEventListener('DOMContentLoaded', function() {
-            // チーム初期化
-            teams = [];
-            for (let i = 1; i <= 10; i++) {
-                teams.push({
-                    id: i,
-                    name: `チーム${i}`,
-                    progress: 0,
-                    maxProgress: 10
-                });
+            // 進捗データ初期化
+            for (let i = 1; i <= totalTeams; i++) {
+                teamProgress[i] = Array(totalSteps).fill(false);
             }
             
-            createTeamProgressBars();
+            createTeamProgressDisplay();
             
-            // Firebase接続後に進捗を読み込み
+            // Firebase接続後に監視開始
             setTimeout(async () => {
-                watchTeamChanges();
                 watchCarNumberChanges();
                 watchCountdownChanges();
+                watchTeamProgressChanges();
             }, 1000);
             
             // イベントリスナーを追加
-            document.getElementById('nextAllBtn').addEventListener('click', () => updateAllTeams(1));
-            document.getElementById('backAllBtn').addEventListener('click', () => updateAllTeams(-1));
-            
-            // 車両番号制御のイベントリスナー
             document.getElementById('startCountdownBtn').addEventListener('click', startCountdown);
             document.getElementById('stopCountdownBtn').addEventListener('click', stopCountdown);
             document.getElementById('applyTimeBtn').addEventListener('click', applyTime);
