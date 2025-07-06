@@ -38,197 +38,6 @@
             opacity: 0;
         }
         
-        /* チーム選択画面 */
-        .team-selection {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #9C27B0, #673AB7);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            z-index: 200;
-            padding: 20px;
-        }
-        
-        .team-selection.hidden {
-            display: none;
-        }
-        
-        .team-selection-title {
-            font-size: 32px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        .team-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-            max-width: 600px;
-            width: 100%;
-            margin-bottom: 30px;
-        }
-        
-        .team-btn {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(10px);
-            border: 2px solid transparent;
-            padding: 20px;
-            border-radius: 15px;
-            color: white;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-        }
-        
-        .team-btn:hover {
-            background: rgba(255, 255, 255, 0.25);
-            border-color: rgba(255, 255, 255, 0.5);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-        }
-        
-        .team-btn.selected {
-            background: rgba(255, 255, 255, 0.3);
-            border-color: #ffffff;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
-        }
-        
-        .next-to-camera-btn {
-            background: linear-gradient(135deg, #ffffff, #f0f0f0);
-            color: #9C27B0;
-            border: none;
-            padding: 15px 40px;
-            border-radius: 30px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        }
-        
-        .next-to-camera-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-        }
-        
-        .next-to-camera-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        /* カメラ選択画面 */
-        .camera-selection {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #4CAF50, #2E7D32);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            z-index: 150;
-            padding: 20px;
-        }
-        
-        .camera-selection.hidden {
-            display: none;
-        }
-        
-        .camera-selection-title {
-            font-size: 28px;
-            font-weight: bold;
-            margin-bottom: 10px;
-            text-align: center;
-        }
-        
-        .camera-selection-subtitle {
-            font-size: 16px;
-            opacity: 0.9;
-            text-align: center;
-            margin-bottom: 30px;
-            line-height: 1.5;
-        }
-        
-        .camera-list {
-            width: 100%;
-            max-width: 500px;
-            margin-bottom: 20px;
-        }
-        
-        .camera-item {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(10px);
-            margin: 10px 0;
-            padding: 20px;
-            border-radius: 15px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
-            text-align: center;
-        }
-        
-        .camera-item:hover {
-            background: rgba(255, 255, 255, 0.25);
-            border-color: rgba(255, 255, 255, 0.5);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-        }
-        
-        .camera-item.selected {
-            background: rgba(255, 255, 255, 0.3);
-            border-color: #ffffff;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
-        }
-        
-        .camera-name {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        
-        .camera-info {
-            font-size: 14px;
-            opacity: 0.8;
-        }
-        
-        .start-camera-btn {
-            background: linear-gradient(135deg, #ffffff, #f0f0f0);
-            color: #4CAF50;
-            border: none;
-            padding: 15px 40px;
-            border-radius: 30px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            margin-top: 20px;
-        }
-        
-        .start-camera-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-        }
-        
-        .start-camera-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
         /* 初期化中の表示 */
         .loading-overlay {
             position: absolute;
@@ -484,36 +293,12 @@
     <!-- タップインジケーター -->
     <div class="tap-indicator" id="tapIndicator">5</div>
     
-    <!-- チーム選択画面 -->
-    <div class="team-selection" id="teamSelection">
-        <div class="team-selection-title">チームを選択してください</div>
-        <div class="team-grid" id="teamGrid">
-            <!-- JavaScript で生成 -->
-        </div>
-        <button class="next-to-camera-btn" id="nextToCameraBtn" disabled>カメラ選択に進む</button>
-    </div>
-    
-    <!-- カメラ選択画面 -->
-    <div class="camera-selection hidden" id="cameraSelection">
-        <div class="camera-selection-title">📷 カメラを選択</div>
-        <div class="camera-selection-subtitle">
-            使用するカメラを選択してください<br>
-            選択後、全画面表示でカメラが起動します
-        </div>
-        
-        <div class="camera-list" id="cameraList">
-            <div class="loading-text">📡 カメラを検索中...</div>
-        </div>
-        
-        <button class="start-camera-btn" id="startCameraBtn" disabled>📹 選択したカメラを開始</button>
-    </div>
-    
     <!-- 初期化中オーバーレイ -->
-    <div class="loading-overlay hidden" id="loadingOverlay">
+    <div class="loading-overlay" id="loadingOverlay">
         <div class="camera-icon">📷</div>
         <div class="loading-text">カメラ起動中...</div>
         <div class="loading-subtitle">
-            選択したカメラを起動しています<br>
+            <span id="loadingTeamName">チーム</span>のカメラを起動しています<br>
             しばらくお待ちください
         </div>
     </div>
@@ -551,13 +336,8 @@
         const db = firebase.firestore();
         
         // DOM要素
-        const teamSelection = document.getElementById('teamSelection');
-        const teamGrid = document.getElementById('teamGrid');
-        const nextToCameraBtn = document.getElementById('nextToCameraBtn');
-        const cameraSelection = document.getElementById('cameraSelection');
-        const cameraList = document.getElementById('cameraList');
-        const startCameraBtn = document.getElementById('startCameraBtn');
         const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingTeamName = document.getElementById('loadingTeamName');
         const cameraContainer = document.getElementById('cameraContainer');
         const cameraVideo = document.getElementById('cameraVideo');
         const delayedCanvas = document.getElementById('delayedCanvas');
@@ -571,8 +351,6 @@
         
         // 変数
         let selectedTeamId = null;
-        let selectedCameraId = null;
-        let availableCameras = [];
         let currentTeamProgress = 0;
         let cameraStream = null;
         let delayedFrames = [];
@@ -583,221 +361,48 @@
         
         // 初期化
         document.addEventListener('DOMContentLoaded', function() {
-            initializeTeamSelection();
             setupBackButton();
             
             // URLパラメータからチーム情報を取得
             const urlParams = new URLSearchParams(window.location.search);
             const teamParam = urlParams.get('team');
+            
             if (teamParam) {
                 selectedTeamId = parseInt(teamParam);
-                showCameraSelectionDirectly();
+                startCameraSystem();
+            } else {
+                // チーム情報がない場合はエラー
+                showError('チーム情報が指定されていません');
+                setTimeout(() => {
+                    window.location.href = 'staff.html';
+                }, 2000);
             }
         });
         
-        // チーム選択画面を初期化
-        function initializeTeamSelection() {
-            let html = '';
-            for (let i = 1; i <= 11; i++) {
-                html += `<button class="team-btn" onclick="selectTeam(${i})">チーム${i}</button>`;
-            }
-            teamGrid.innerHTML = html;
-        }
-        
-        // チーム選択
-        function selectTeam(teamId) {
-            selectedTeamId = teamId;
-            
-            // 選択状態の更新
-            const teamButtons = document.querySelectorAll('.team-btn');
-            teamButtons.forEach(btn => {
-                btn.classList.remove('selected');
-                if (btn.textContent === `チーム${teamId}`) {
-                    btn.classList.add('selected');
-                }
-            });
-            
-            // カメラ選択に進むボタンを有効化
-            nextToCameraBtn.disabled = false;
-            
-            console.log(`チーム${teamId}が選択されました`);
-        }
-        
-        // カメラ選択画面に進む
-        function showCameraSelection() {
-            if (!selectedTeamId) {
-                showError('チームを選択してください');
-                return;
-            }
-            
-            // チーム選択画面を隠す
-            teamSelection.classList.add('hidden');
-            
-            // カメラ選択画面を表示
-            cameraSelection.classList.remove('hidden');
-            
-            // カメラを検索
-            searchCameras();
-        }
-        
-        // チーム選択せずに直接カメラ選択画面を表示（URLパラメータから）
-        function showCameraSelectionDirectly() {
-            teamSelection.classList.add('hidden');
-            cameraSelection.classList.remove('hidden');
-            
-            // カメラを検索
-            searchCameras();
-        }
-        
-        // カメラデバイス検索
-        async function searchCameras() {
-            try {
-                console.log('カメラデバイス検索開始');
-                
-                // まずカメラへのアクセス許可を取得
-                await navigator.mediaDevices.getUserMedia({ video: true });
-                
-                // デバイス一覧を取得
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                
-                console.log(`検出されたカメラ数: ${videoDevices.length}`);
-                
-                availableCameras = videoDevices;
-                displayCameraList();
-                
-            } catch (error) {
-                console.log(`カメラ検索エラー: ${error.message}`);
-                
-                let userMessage = 'カメラの検索に失敗しました';
-                let details = error.message;
-                
-                if (error.name === 'NotAllowedError') {
-                    userMessage = 'カメラへのアクセスが拒否されました';
-                    details = 'ブラウザの設定でカメラのアクセスを許可してください';
-                }
-                
-                cameraList.innerHTML = `
-                    <div style="text-align: center; color: rgba(255, 255, 255, 0.8);">
-                        <div style="font-size: 48px; margin-bottom: 20px;">❌</div>
-                        <div style="font-size: 18px; margin-bottom: 10px;">${userMessage}</div>
-                        <div style="font-size: 14px; opacity: 0.7;">${details}</div>
-                        <button style="margin-top: 20px; padding: 10px 20px; background: rgba(255,255,255,0.2); border: 1px solid white; color: white; border-radius: 8px; cursor: pointer;" onclick="searchCameras()">🔄 再試行</button>
-                    </div>
-                `;
-            }
-        }
-        
-        // カメラリスト表示
-        function displayCameraList() {
-            if (availableCameras.length === 0) {
-                cameraList.innerHTML = `
-                    <div style="text-align: center; color: rgba(255, 255, 255, 0.8);">
-                        <div style="font-size: 48px; margin-bottom: 20px;">📷</div>
-                        <div style="font-size: 18px;">カメラが見つかりませんでした</div>
-                        <div style="font-size: 14px; opacity: 0.7; margin-top: 10px;">カメラが接続されているか確認してください</div>
-                    </div>
-                `;
-                return;
-            }
-            
-            let html = '';
-            availableCameras.forEach((camera, index) => {
-                const displayName = camera.label || `カメラ ${index + 1}`;
-                const cameraType = getCameraType(camera.label);
-                
-                html += `
-                    <div class="camera-item" data-camera-id="${camera.deviceId}" onclick="selectCamera('${camera.deviceId}')">
-                        <div class="camera-name">${cameraType.icon} ${displayName}</div>
-                        <div class="camera-info">${cameraType.description}</div>
-                    </div>
-                `;
-            });
-            
-            cameraList.innerHTML = html;
-            console.log(`カメラリスト表示完了: ${availableCameras.length}台`);
-        }
-        
-        // カメラタイプ判定
-        function getCameraType(label) {
-            if (!label) {
-                return { icon: '📷', description: 'カメラデバイス' };
-            }
-            
-            const lowerLabel = label.toLowerCase();
-            
-            if (lowerLabel.includes('front') || lowerLabel.includes('user') || lowerLabel.includes('内蔵')) {
-                return { icon: '🤳', description: 'フロントカメラ（前面）' };
-            } else if (lowerLabel.includes('back') || lowerLabel.includes('rear') || lowerLabel.includes('environment')) {
-                return { icon: '📷', description: 'バックカメラ（背面）' };
-            } else if (lowerLabel.includes('external') || lowerLabel.includes('usb')) {
-                return { icon: '🎥', description: '外部カメラ' };
-            } else {
-                return { icon: '📹', description: 'カメラデバイス' };
-            }
-        }
-        
-        // カメラ選択
-        function selectCamera(cameraId) {
-            selectedCameraId = cameraId;
-            
-            // 選択状態の視覚的更新
-            const items = document.querySelectorAll('.camera-item');
-            items.forEach(item => {
-                item.classList.remove('selected');
-                if (item.dataset.cameraId === cameraId) {
-                    item.classList.add('selected');
-                }
-            });
-            
-            // ボタンを有効化
-            startCameraBtn.disabled = false;
-            
-            const selectedCamera = availableCameras.find(cam => cam.deviceId === cameraId);
-            console.log(`カメラ選択: ${selectedCamera ? selectedCamera.label : cameraId}`);
-        }
-        
-        // 選択したカメラで開始
-        function startCamera() {
-            if (!selectedCameraId) {
-                showError('カメラを選択してください');
-                return;
-            }
-            
-            if (!selectedTeamId) {
-                showError('チームが選択されていません');
-                return;
-            }
-            
-            console.log(`選択されたカメラで開始: ${selectedCameraId}`);
-            
-            // カメラ選択画面を隠す
-            cameraSelection.classList.add('hidden');
-            
-            // ローディング表示
-            loadingOverlay.classList.remove('hidden');
-            
-            // カメラ開始
-            initializeCamera();
-            
+        // カメラシステムを開始
+        function startCameraSystem() {
             // チーム情報を表示
             teamName.textContent = `チーム${selectedTeamId}`;
+            loadingTeamName.textContent = `チーム${selectedTeamId}`;
             progressIndicator.classList.add('show');
             
             // チーム進捗の監視を開始
             watchTeamProgress();
+            
+            // カメラを初期化
+            initializeCamera();
         }
         
         // カメラ初期化
         async function initializeCamera() {
             try {
-                // カメラストリームを取得
+                // カメラストリームを取得（デフォルトのカメラを使用）
                 const constraints = {
                     video: {
-                        deviceId: { exact: selectedCameraId },
                         width: { ideal: 1920 },
                         height: { ideal: 1080 },
-                        frameRate: { ideal: 30 }
+                        frameRate: { ideal: 30 },
+                        facingMode: 'environment' // 背面カメラを優先
                     },
                     audio: false
                 };
@@ -825,6 +430,10 @@
                             const settings = videoTrack.getSettings();
                             console.log(`カメラ設定: ${settings.width}x${settings.height} @${settings.frameRate}fps`);
                         }
+                        
+                        // 初期の映像表示を更新
+                        updateVideoDisplay();
+                        
                     }).catch(error => {
                         console.error('ビデオ再生エラー:', error);
                         showError('ビデオの再生に失敗しました');
@@ -833,9 +442,20 @@
                 
             } catch (error) {
                 console.error('カメラの初期化に失敗:', error);
-                showError('カメラの初期化に失敗しました');
-                loadingOverlay.classList.add('hidden');
-                cameraSelection.classList.remove('hidden');
+                let errorMsg = 'カメラの初期化に失敗しました';
+                
+                if (error.name === 'NotAllowedError') {
+                    errorMsg = 'カメラへのアクセスが拒否されました。ブラウザの設定を確認してください。';
+                } else if (error.name === 'NotFoundError') {
+                    errorMsg = 'カメラデバイスが見つかりません。';
+                }
+                
+                showError(errorMsg);
+                
+                // エラーの場合は少し待ってからスタッフ画面に戻る
+                setTimeout(() => {
+                    window.location.href = 'staff.html';
+                }, 5000);
             }
         }
         
@@ -857,7 +477,13 @@
                     console.log(`チーム${selectedTeamId}の進捗: ${currentTeamProgress}`);
                 } else {
                     console.log(`チーム${selectedTeamId}のデータが見つかりません`);
+                    currentTeamProgress = 0;
+                    updateVideoDisplay();
+                    currentStep.textContent = '0';
                 }
+            }, (error) => {
+                console.error('チーム進捗の監視エラー:', error);
+                showError('チーム進捗の取得に失敗しました');
             });
         }
         
@@ -1014,8 +640,8 @@
                 teamProgressUnsubscribe();
             }
             
-            // ホームに戻る
-            window.location.href = 'index.html';
+            // スタッフ画面に戻る
+            window.location.href = 'staff.html';
         }
         
         // エラー表示
@@ -1025,12 +651,8 @@
             
             setTimeout(() => {
                 errorMessage.classList.remove('show');
-            }, 3000);
+            }, 5000);
         }
-        
-        // イベントリスナー
-        nextToCameraBtn.addEventListener('click', showCameraSelection);
-        startCameraBtn.addEventListener('click', startCamera);
         
         // ページ終了時のクリーンアップ
         window.addEventListener('beforeunload', function() {
