@@ -423,21 +423,25 @@
         async function setSelectedTeam(teamId) {
             try {
                 const currentStep = getCurrentStep(teamId);
+                const completedSteps = teamProgress[teamId].filter(step => step).length;
                 
-                // モニター情報に選択されたチームを保存
-                await db.collection('monitor').doc('selectedTeam').set({
+                console.log(`チーム${teamId}選択開始 - 現在のステップ: ${currentStep + 1}, 完了ステップ数: ${completedSteps}`);
+                
+                // 車両番号・モニター前・カメラタブレット自体の同期のため monitor-front に保存
+                await db.collection('monitor-front').doc('selectedTeam').set({
                     teamId: teamId,
                     currentStep: currentStep,
                     progress: teamProgress[teamId],
                     lastUpdated: new Date()
                 });
                 
-                // チーム進捗も保存（カメラタブレット用）
-                const completedSteps = teamProgress[teamId].filter(step => step).length;
-                await db.collection('teams').doc(teamId.toString()).set({
-                    progress: completedSteps,
+                // チーム進捗も保存（車両番号・モニター前・カメラタブレット自体の同期用）
+                await db.collection('tabletTeamsFront').doc(teamId.toString()).set({
+                    progress: teamProgress[teamId],
                     lastUpdated: new Date()
                 }, { merge: true });
+                
+                console.log(`Firebaseに保存完了: チーム${teamId} - 進捗${completedSteps} (monitor-front)`);
                 
                 currentSelectedTeamId = teamId;
                 updateSelectedTeamVisual();
@@ -480,12 +484,12 @@
         // Firebaseから現在選択されているチームを読み込み
         async function loadSelectedTeamFromFirebase() {
             try {
-                const selectedTeamDoc = await db.collection('monitor').doc('selectedTeam').get();
+                const selectedTeamDoc = await db.collection('monitor-front').doc('selectedTeam').get();
                 if (selectedTeamDoc.exists) {
                     const data = selectedTeamDoc.data();
                     currentSelectedTeamId = data.teamId;
                     updateSelectedTeamVisual();
-                    console.log(`前回選択されたチーム: ${currentSelectedTeamId}`);
+                    console.log(`前回選択されたチーム: ${currentSelectedTeamId} (monitor-front)`);
                 }
             } catch (error) {
                 console.error('選択チーム読み込みエラー:', error);
@@ -568,12 +572,15 @@
                 updateSelectedTeamInfo();
             }
             
-            // チーム進捗も更新（カメラタブレット用）
-            const completedSteps = teamProgress[teamId].filter(step => step).length;
-            db.collection('teams').doc(teamId.toString()).set({
-                progress: completedSteps,
+            // チーム進捗も更新（車両番号・モニター前・カメラタブレット自体の同期用）
+            console.log(`ステップ${stepId}更新: チーム${teamId}`);
+            
+            db.collection('tabletTeamsFront').doc(teamId.toString()).set({
+                progress: teamProgress[teamId],
                 lastUpdated: new Date()
-            }, { merge: true }).catch(error => {
+            }, { merge: true }).then(() => {
+                console.log(`Firebase更新完了: チーム${teamId} - 進捗配列更新 (tabletTeamsFront)`);
+            }).catch(error => {
                 console.error('進捗更新エラー:', error);
             });
         }
