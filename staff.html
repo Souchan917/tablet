@@ -423,15 +423,25 @@
         async function setSelectedTeam(teamId) {
             try {
                 const currentStep = getCurrentStep(teamId);
+                
+                // モニター情報に選択されたチームを保存
                 await db.collection('monitor').doc('selectedTeam').set({
                     teamId: teamId,
                     currentStep: currentStep,
                     progress: teamProgress[teamId],
                     lastUpdated: new Date()
                 });
+                
+                // チーム進捗も保存（カメラタブレット用）
+                const completedSteps = teamProgress[teamId].filter(step => step).length;
+                await db.collection('teams').doc(teamId.toString()).set({
+                    progress: completedSteps,
+                    lastUpdated: new Date()
+                }, { merge: true });
+                
                 currentSelectedTeamId = teamId;
                 updateSelectedTeamVisual();
-                console.log(`チーム${teamId}が選択されました（ステップ${currentStep + 1}）`);
+                console.log(`チーム${teamId}が選択されました（進捗: ${completedSteps}）`);
             } catch (error) {
                 console.error('選択チーム保存エラー:', error);
             }
@@ -451,12 +461,12 @@
                 }
             });
             
-            // カメラボタンの表示・非表示
+            // カメラボタンの表示（常に表示）
+            cameraButton.classList.add('show');
             if (currentSelectedTeamId) {
-                cameraButton.classList.add('show');
-                cameraButton.textContent = `📷 チーム${currentSelectedTeamId}のカメラ表示`;
+                cameraButton.textContent = `📷 カメラタブレット画面（チーム${currentSelectedTeamId}選択中）`;
             } else {
-                cameraButton.classList.remove('show');
+                cameraButton.textContent = '📷 カメラタブレット画面';
             }
         }
 
@@ -557,6 +567,15 @@
             if (currentSelectedTeamId === teamId) {
                 updateSelectedTeamInfo();
             }
+            
+            // チーム進捗も更新（カメラタブレット用）
+            const completedSteps = teamProgress[teamId].filter(step => step).length;
+            db.collection('teams').doc(teamId.toString()).set({
+                progress: completedSteps,
+                lastUpdated: new Date()
+            }, { merge: true }).catch(error => {
+                console.error('進捗更新エラー:', error);
+            });
         }
 
         // 現在のステップ（次にクリアすべきステップ）を取得
@@ -638,17 +657,12 @@
             window.location.href = 'index.html';
         }
 
-        // 選択されたチームのカメラ画面を開く
+        // カメラタブレット画面を開く
         function openCameraForSelectedTeam() {
-            if (!currentSelectedTeamId) {
-                alert('チームを選択してください');
-                return;
-            }
-            
-            console.log(`チーム${currentSelectedTeamId}のカメラ画面を開きます`);
+            console.log('カメラタブレット画面を開きます');
             
             // カメラタブレット画面に遷移
-            window.location.href = `camera-tablet-self.html?team=${currentSelectedTeamId}`;
+            window.location.href = 'camera-tablet-self.html';
         }
 
         // 初期化
@@ -656,6 +670,11 @@
             initializeProgress();
             createTeamRows();
             updateStats();
+            
+            // カメラボタンを初期表示
+            const cameraButton = document.getElementById('cameraButton');
+            cameraButton.classList.add('show');
+            cameraButton.textContent = '📷 カメラタブレット画面';
             
             // Firebase初期化後に少し待機
             setTimeout(async () => {
