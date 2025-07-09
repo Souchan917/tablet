@@ -33,6 +33,20 @@
             opacity: 0;
         }
         
+        /* 設定隠しボタン（右上） */
+        .settings-btn {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            z-index: 1000;
+            opacity: 0;
+        }
+        
         /* 画像表示エリア */
         .image-container {
             width: 100vw;
@@ -77,7 +91,6 @@
                 0 10px 30px rgba(0, 0, 0, 0.8), 
                 inset 0 2px 10px rgba(255, 215, 0, 0.2),
                 0 0 20px rgba(212, 175, 55, 0.3);
-            position: relative;
             overflow: hidden;
         }
         
@@ -174,7 +187,6 @@
             width: 100%;
             position: relative;
             margin-top: 0.5rem;
-            transform: translateY(-5vh);
         }
         
         .monitor-car-number {
@@ -224,6 +236,145 @@
             font-size: 3.6rem;
         }
         
+        /* 控えめなノイズ効果 */
+        .noise-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.98) 50%, rgba(0,0,0,1) 100%),
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 3px,
+                    rgba(255,255,255,0.03) 3px,
+                    rgba(255,255,255,0.03) 6px
+                ),
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 3px,
+                    rgba(255,255,255,0.03) 3px,
+                    rgba(255,255,255,0.03) 6px
+                );
+            pointer-events: none;
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .noise-overlay.active {
+            opacity: 1;
+        }
+
+        .noise-overlay::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                repeating-linear-gradient(
+                    0deg,
+                    rgba(255, 255, 255, 0.02),
+                    rgba(255, 255, 255, 0.02) 1px,
+                    transparent 1px,
+                    transparent 4px
+                ),
+                repeating-linear-gradient(
+                    90deg,
+                    rgba(255, 255, 255, 0.02),
+                    rgba(255, 255, 255, 0.02) 1px,
+                    transparent 1px,
+                    transparent 4px
+                );
+            animation: gentle-static 0.3s linear infinite;
+        }
+
+        @keyframes gentle-static {
+            0% { transform: translate(0px, 0px); }
+            25% { transform: translate(-0.5px, 0.5px); }
+            50% { transform: translate(0.5px, -0.5px); }
+            75% { transform: translate(-0.5px, -0.5px); }
+            100% { transform: translate(0px, 0px); }
+        }
+
+        .noise-overlay::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                linear-gradient(
+                    0deg,
+                    transparent 0%,
+                    rgba(255, 255, 255, 0.05) 20%,
+                    transparent 40%,
+                    rgba(255, 255, 255, 0.03) 60%,
+                    transparent 80%,
+                    rgba(255, 255, 255, 0.05) 100%
+                );
+            animation: gentle-scan-lines 3s linear infinite;
+        }
+
+        @keyframes gentle-scan-lines {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
+        }
+
+        .noise-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ff4444;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-shadow: 
+                0 0 10px #ff4444,
+                0 0 20px #ff4444;
+            animation: gentle-glitch-text 1s linear infinite;
+            z-index: 11;
+            text-align: center;
+        }
+
+        @keyframes gentle-glitch-text {
+            0% { transform: translate(-50%, -50%) skew(0deg); }
+            25% { transform: translate(-50.5%, -49.5%) skew(0.5deg); }
+            50% { transform: translate(-49.5%, -50.5%) skew(-0.5deg); }
+            75% { transform: translate(-50%, -50%) skew(0deg); }
+            100% { transform: translate(-50%, -50%) skew(0deg); }
+        }
+        
+        /* カウントダウンアニメーション */
+        .monitor-car-number.countdown {
+            animation: countdownPulse 1s ease-in-out;
+        }
+        
+        @keyframes countdownPulse {
+            0% {
+                transform: scale(1);
+                color: #d4af37;
+            }
+            50% {
+                transform: scale(1.05);
+                color: #ff6b6b;
+                text-shadow: 
+                    0 2px 5px rgba(0, 0, 0, 0.5),
+                    0 0 10px rgba(255, 107, 107, 0.5),
+                    0 0 20px rgba(255, 107, 107, 0.3);
+            }
+            100% {
+                transform: scale(1);
+                color: #d4af37;
+            }
+        }
+        
         /* ローディングテキスト */
         #loadingText {
             color: white;
@@ -261,6 +412,199 @@
             opacity: 1;
         }
         
+        /* 設定パネル */
+        .settings-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 350px;
+            max-height: calc(100vh - 40px);
+            background: rgba(26, 26, 26, 0.95);
+            border: 2px solid #d4af37;
+            border-radius: 10px;
+            z-index: 2000;
+            display: none;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+        }
+        
+        .settings-content {
+            padding: 20px;
+            max-height: calc(100vh - 80px);
+            overflow-y: auto;
+            color: #fff;
+        }
+        
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #d4af37;
+            cursor: move;
+        }
+        
+        .settings-header:hover {
+            background: rgba(212, 175, 55, 0.1);
+            border-radius: 5px;
+        }
+        
+        .settings-minimize {
+            background: #d4af37;
+            color: #000;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s;
+        }
+        
+        .settings-minimize:hover {
+            background: #b8941f;
+        }
+        
+        .settings-panel.minimized {
+            height: 60px;
+            overflow: hidden;
+        }
+        
+        .settings-panel.minimized .settings-content {
+            overflow: hidden;
+        }
+        
+        .settings-panel.minimized .settings-body {
+            display: none;
+        }
+        
+        .settings-title {
+            color: #d4af37;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .settings-group {
+            margin-bottom: 20px;
+        }
+        
+        .settings-group-title {
+            color: #d4af37;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            border-left: 4px solid #d4af37;
+            padding-left: 8px;
+        }
+        
+        .settings-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .settings-label {
+            color: #fff;
+            font-size: 12px;
+            min-width: 70px;
+            margin-right: 10px;
+        }
+        
+        .settings-slider {
+            flex: 1;
+            margin-right: 10px;
+        }
+        
+        .settings-slider input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .settings-slider input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #d4af37;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .settings-value {
+            color: #d4af37;
+            font-size: 11px;
+            min-width: 35px;
+            text-align: center;
+        }
+        
+        .settings-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+            border-top: 1px solid #333;
+            padding-top: 15px;
+        }
+        
+        .settings-btn-action {
+            background: #d4af37;
+            color: #000;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            transition: background 0.3s;
+        }
+        
+        .settings-btn-action:hover {
+            background: #b8941f;
+        }
+        
+        .settings-btn-secondary {
+            background: #333;
+            color: #fff;
+            border: 1px solid #666;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s;
+        }
+        
+        .settings-btn-secondary:hover {
+            background: #444;
+        }
+        
+        /* スクロールバーのスタイル */
+        .settings-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .settings-content::-webkit-scrollbar-track {
+            background: #333;
+            border-radius: 4px;
+        }
+        
+        .settings-content::-webkit-scrollbar-thumb {
+            background: #d4af37;
+            border-radius: 4px;
+        }
+        
+        .settings-content::-webkit-scrollbar-thumb:hover {
+            background: #b8941f;
+        }
+        
         /* レスポンシブデザイン */
         @media (max-width: 768px) {
             #loadingText {
@@ -273,8 +617,94 @@
     <!-- 隠しボタン（左上5回タップでホームに戻る） -->
     <button class="hidden-back-btn" id="hiddenBackBtn"></button>
     
+    <!-- 設定隠しボタン（右上） -->
+    <button class="settings-btn" id="settingsBtn"></button>
+    
     <!-- タップインジケーター -->
     <div class="tap-indicator" id="tapIndicator">5</div>
+    
+    <!-- 設定パネル -->
+    <div class="settings-panel" id="settingsPanel">
+        <div class="settings-content">
+            <div class="settings-header" id="settingsHeader">
+                <div class="settings-title">モニター設定</div>
+                <button class="settings-minimize" id="settingsMinimize">−</button>
+            </div>
+            
+            <div class="settings-body" id="settingsBody">
+                <!-- 背景画像設定 -->
+                <div class="settings-group">
+                    <div class="settings-group-title">背景画像</div>
+                    <div class="settings-item">
+                        <div class="settings-label">横位置</div>
+                        <div class="settings-slider">
+                            <input type="range" id="bgPosX" min="-50" max="50" value="0">
+                        </div>
+                        <div class="settings-value" id="bgPosXValue">0%</div>
+                    </div>
+                    <div class="settings-item">
+                        <div class="settings-label">縦位置</div>
+                        <div class="settings-slider">
+                            <input type="range" id="bgPosY" min="-50" max="50" value="0">
+                        </div>
+                        <div class="settings-value" id="bgPosYValue">0%</div>
+                    </div>
+                    <div class="settings-item">
+                        <div class="settings-label">サイズ</div>
+                        <div class="settings-slider">
+                            <input type="range" id="bgSize" min="50" max="150" value="100">
+                        </div>
+                        <div class="settings-value" id="bgSizeValue">100%</div>
+                    </div>
+                </div>
+                
+                <!-- 車両番号モニター設定 -->
+                <div class="settings-group">
+                    <div class="settings-group-title">車両番号モニター</div>
+                    <div class="settings-item">
+                        <div class="settings-label">横位置</div>
+                        <div class="settings-slider">
+                            <input type="range" id="monitorPosX" min="-200" max="200" value="0">
+                        </div>
+                        <div class="settings-value" id="monitorPosXValue">0px</div>
+                    </div>
+                    <div class="settings-item">
+                        <div class="settings-label">縦位置</div>
+                        <div class="settings-slider">
+                            <input type="range" id="monitorPosY" min="-200" max="200" value="0">
+                        </div>
+                        <div class="settings-value" id="monitorPosYValue">0px</div>
+                    </div>
+                    <div class="settings-item">
+                        <div class="settings-label">サイズ</div>
+                        <div class="settings-slider">
+                            <input type="range" id="monitorSize" min="50" max="150" value="100">
+                        </div>
+                        <div class="settings-value" id="monitorSizeValue">100%</div>
+                    </div>
+                </div>
+                
+                <!-- 数字サイズ設定 -->
+                <div class="settings-group">
+                    <div class="settings-group-title">数字サイズ</div>
+                    <div class="settings-item">
+                        <div class="settings-label">フォントサイズ</div>
+                        <div class="settings-slider">
+                            <input type="range" id="numberSize" min="50" max="200" value="100">
+                        </div>
+                        <div class="settings-value" id="numberSizeValue">100%</div>
+                    </div>
+                </div>
+                
+                <!-- ボタン -->
+                <div class="settings-buttons">
+                    <button class="settings-btn-action" id="saveSettings">保存</button>
+                    <button class="settings-btn-secondary" id="resetSettings">リセット</button>
+                    <button class="settings-btn-secondary" id="cancelSettings">×</button>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <!-- 画像表示エリア -->
     <div class="image-container">
@@ -282,13 +712,16 @@
         
         <!-- 車両番号モニター -->
         <div class="car-number-monitor" id="carNumberMonitor">
+            <div class="noise-overlay" id="noiseOverlay">
+                <div class="noise-text">電源装置が作動していません</div>
+            </div>
             <div class="monitor-emblem">
                 <div class="monitor-emblem-inner">
                     <div class="monitor-emblem-text">GATANGO TRAIN</div>
                 </div>
             </div>
             <div class="monitor-car-number-container">
-                <div class="monitor-car-number" id="monitorCarNumber">3600</div>
+                <div class="monitor-car-number" id="monitorCarNumber">3601</div>
                 <div class="monitor-car-suffix">号車</div>
             </div>
         </div>
@@ -307,14 +740,98 @@
         let selectedTeamData = null;
         let unsubscribeSelectedTeam = null;
         let unsubscribeCarNumber = null;
+        let unsubscribeCountdown = null;
+        let unsubscribeTeamProgress = null;
         let heartbeatInterval = null;
         let tapCount = 0;
         let tapTimer = null;
         let currentCarNumber = 3600;
+        let countdownInterval = null;
+        let isStep4Cleared = false;
 
         // DOM要素
         const hiddenBackBtn = document.getElementById('hiddenBackBtn');
         const tapIndicator = document.getElementById('tapIndicator');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsPanel = document.getElementById('settingsPanel');
+        
+        // 設定のデフォルト値
+        const defaultSettings = {
+            bgPosX: 0,
+            bgPosY: 0,
+            bgSize: 100,
+            monitorPosX: 0,
+            monitorPosY: 0,
+            monitorSize: 100,
+            numberSize: 100
+        };
+        
+        // 現在の設定値
+        let currentSettings = {...defaultSettings};
+
+        // 設定の保存
+        function saveSettingsToStorage() {
+            localStorage.setItem('monitor-back-settings', JSON.stringify(currentSettings));
+        }
+
+        // 設定の読み込み
+        function loadSettingsFromStorage() {
+            const saved = localStorage.getItem('monitor-back-settings');
+            if (saved) {
+                currentSettings = {...defaultSettings, ...JSON.parse(saved)};
+            }
+        }
+
+        // 設定値をUIに反映
+        function updateSettingsUI() {
+            document.getElementById('bgPosX').value = currentSettings.bgPosX;
+            document.getElementById('bgPosXValue').textContent = currentSettings.bgPosX + '%';
+            
+            document.getElementById('bgPosY').value = currentSettings.bgPosY;
+            document.getElementById('bgPosYValue').textContent = currentSettings.bgPosY + '%';
+            
+            document.getElementById('bgSize').value = currentSettings.bgSize;
+            document.getElementById('bgSizeValue').textContent = currentSettings.bgSize + '%';
+            
+            document.getElementById('monitorPosX').value = currentSettings.monitorPosX;
+            document.getElementById('monitorPosXValue').textContent = currentSettings.monitorPosX + 'px';
+            
+            document.getElementById('monitorPosY').value = currentSettings.monitorPosY;
+            document.getElementById('monitorPosYValue').textContent = currentSettings.monitorPosY + 'px';
+            
+            document.getElementById('monitorSize').value = currentSettings.monitorSize;
+            document.getElementById('monitorSizeValue').textContent = currentSettings.monitorSize + '%';
+            
+            document.getElementById('numberSize').value = currentSettings.numberSize;
+            document.getElementById('numberSizeValue').textContent = currentSettings.numberSize + '%';
+        }
+
+        // 設定をスタイルに適用
+        function applySettings() {
+            const backgroundImage = document.getElementById('backgroundImage');
+            const carNumberMonitor = document.getElementById('carNumberMonitor');
+            const monitorCarNumber = document.getElementById('monitorCarNumber');
+            
+            // 背景画像の設定
+            backgroundImage.style.objectPosition = `${50 + currentSettings.bgPosX}% ${50 + currentSettings.bgPosY}%`;
+            backgroundImage.style.transform = `scale(${currentSettings.bgSize / 100})`;
+            
+            // 車両番号モニターの設定
+            carNumberMonitor.style.transform = `translate(calc(-50% + ${currentSettings.monitorPosX}px), calc(-50% + ${currentSettings.monitorPosY}px)) scale(${currentSettings.monitorSize / 100})`;
+            
+            // 数字サイズの設定
+            monitorCarNumber.style.fontSize = `${4 * currentSettings.numberSize / 100}rem`;
+        }
+
+        // 設定パネルの表示/非表示
+        function toggleSettingsPanel() {
+            if (settingsPanel.style.display === 'block') {
+                settingsPanel.style.display = 'none';
+            } else {
+                settingsPanel.style.display = 'block';
+                updateSettingsUI();
+            }
+        }
 
         // 接続監視のハートビート送信
         function sendHeartbeat() {
@@ -360,11 +877,50 @@
         // 車両番号を更新
         function updateCarNumber() {
             const monitorCarNumber = document.getElementById('monitorCarNumber');
-            monitorCarNumber.textContent = currentCarNumber;
+            // モニター後では車両番号に1を足した値を表示
+            const displayNumber = currentCarNumber + 1;
+            monitorCarNumber.textContent = displayNumber;
             
-            // 桁数に応じたクラス設定
-            const digitCount = currentCarNumber.toString().length;
+            // 桁数に応じたクラス設定（表示する数値で判定）
+            const digitCount = displayNumber.toString().length;
             monitorCarNumber.className = `monitor-car-number digits-${digitCount}`;
+        }
+        
+        // カウントダウン表示を更新（アニメーション付き）
+        function updateDisplayWithAnimation() {
+            const monitorCarNumber = document.getElementById('monitorCarNumber');
+            // モニター後では車両番号に1を足した値を表示
+            const displayNumber = currentCarNumber + 1;
+            monitorCarNumber.textContent = displayNumber;
+            
+            // 桁数に応じたクラス設定（表示する数値で判定）
+            const digitCount = displayNumber.toString().length;
+            monitorCarNumber.className = `monitor-car-number digits-${digitCount}`;
+            
+            // カウントダウンアニメーション
+            monitorCarNumber.classList.add('countdown');
+            setTimeout(() => {
+                monitorCarNumber.classList.remove('countdown');
+            }, 1000);
+        }
+        
+        // ノイズ表示を更新
+        function updateNoiseDisplay() {
+            const noiseOverlay = document.getElementById('noiseOverlay');
+            
+            if (!selectedTeamData) {
+                // チーム未選択時はノイズ表示
+                noiseOverlay.classList.add('active');
+                return;
+            }
+            
+            if (isStep4Cleared) {
+                // ステップ4クリア済み：通常表示
+                noiseOverlay.classList.remove('active');
+            } else {
+                // ステップ4未クリア：ノイズ表示
+                noiseOverlay.classList.add('active');
+            }
         }
         
         // 車両番号の変更を監視
@@ -381,6 +937,40 @@
                 }
             }, (error) => {
                 console.error('車両番号監視エラー:', error);
+            });
+        }
+        
+        // カウントダウン制御の監視
+        function watchCountdownControl() {
+            unsubscribeCountdown = db.collection('global').doc('carNumberCountdown').onSnapshot((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    const isActive = data.active || false;
+                    const interval = data.interval || 1000;
+                    
+                    // 既存のカウントダウンを停止
+                    if (countdownInterval) {
+                        clearInterval(countdownInterval);
+                        countdownInterval = null;
+                    }
+                    
+                    if (isActive) {
+                        // カウントダウン開始（ローカル処理）
+                        console.log('カウントダウン開始 - 間隔:', interval, 'ミリ秒');
+                        countdownInterval = setInterval(() => {
+                            if (currentCarNumber > 0) {
+                                currentCarNumber--;
+                                updateDisplayWithAnimation();
+                            } else {
+                                // 0になったらカウントダウン停止
+                                clearInterval(countdownInterval);
+                                countdownInterval = null;
+                            }
+                        }, interval);
+                    }
+                }
+            }, (error) => {
+                console.error('カウントダウン制御監視エラー:', error);
             });
         }
         
@@ -415,13 +1005,220 @@
             unsubscribeSelectedTeam = db.collection('monitor-back').doc('selectedTeam').onSnapshot((doc) => {
                 if (doc.exists) {
                     selectedTeamData = doc.data();
+                    console.log('選択チーム更新:', selectedTeamData);
+                    checkStep4Status();
                     updateDisplay();
                 } else {
                     selectedTeamData = null;
+                    isStep4Cleared = false;
+                    updateNoiseDisplay();
                     updateDisplay();
                 }
             }, (error) => {
                 console.error('選択チーム監視エラー:', error);
+            });
+        }
+        
+        // チーム進捗を監視
+        function watchTeamProgress() {
+            unsubscribeTeamProgress = db.collection('tabletTeamsBack').onSnapshot((snapshot) => {
+                if (selectedTeamData) {
+                    checkStep4Status();
+                }
+            }, (error) => {
+                console.error('チーム進捗監視エラー:', error);
+            });
+        }
+        
+        // ステップ4のクリア状況をチェック
+        async function checkStep4Status() {
+            if (!selectedTeamData) {
+                isStep4Cleared = false;
+                updateNoiseDisplay();
+                return;
+            }
+
+            try {
+                const teamDoc = await db.collection('tabletTeamsBack').doc(selectedTeamData.teamId.toString()).get();
+                if (teamDoc.exists) {
+                    const progress = teamDoc.data().progress || [];
+                    // ステップ4（インデックス3）がクリアされているかチェック
+                    isStep4Cleared = progress[3] === true;
+                } else {
+                    isStep4Cleared = false;
+                }
+                updateNoiseDisplay();
+            } catch (error) {
+                console.error('ステップ4チェックエラー:', error);
+                isStep4Cleared = false;
+                updateNoiseDisplay();
+            }
+        }
+        
+        // ドラッグ機能
+        function setupDragFunctionality() {
+            let isDragging = false;
+            let currentX;
+            let currentY;
+            let initialX;
+            let initialY;
+            let xOffset = 0;
+            let yOffset = 0;
+            
+            const settingsHeader = document.getElementById('settingsHeader');
+            
+            function dragStart(e) {
+                if (e.type === "touchstart") {
+                    initialX = e.touches[0].clientX - xOffset;
+                    initialY = e.touches[0].clientY - yOffset;
+                } else {
+                    initialX = e.clientX - xOffset;
+                    initialY = e.clientY - yOffset;
+                }
+                
+                if (e.target === settingsHeader || settingsHeader.contains(e.target)) {
+                    isDragging = true;
+                    settingsPanel.style.transition = 'none';
+                }
+            }
+            
+            function dragEnd(e) {
+                initialX = currentX;
+                initialY = currentY;
+                isDragging = false;
+                settingsPanel.style.transition = '';
+            }
+            
+            function drag(e) {
+                if (isDragging) {
+                    e.preventDefault();
+                    
+                    if (e.type === "touchmove") {
+                        currentX = e.touches[0].clientX - initialX;
+                        currentY = e.touches[0].clientY - initialY;
+                    } else {
+                        currentX = e.clientX - initialX;
+                        currentY = e.clientY - initialY;
+                    }
+                    
+                    xOffset = currentX;
+                    yOffset = currentY;
+                    
+                    // 画面の境界チェック
+                    const rect = settingsPanel.getBoundingClientRect();
+                    const maxX = window.innerWidth - rect.width;
+                    const maxY = window.innerHeight - rect.height;
+                    
+                    xOffset = Math.max(0, Math.min(xOffset, maxX));
+                    yOffset = Math.max(0, Math.min(yOffset, maxY));
+                    
+                    settingsPanel.style.left = xOffset + 'px';
+                    settingsPanel.style.top = yOffset + 'px';
+                    settingsPanel.style.right = 'auto';
+                }
+            }
+            
+            settingsHeader.addEventListener('mousedown', dragStart);
+            settingsHeader.addEventListener('touchstart', dragStart);
+            
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('touchmove', drag);
+            
+            document.addEventListener('mouseup', dragEnd);
+            document.addEventListener('touchend', dragEnd);
+        }
+        
+        // 最小化機能
+        function setupMinimizeFunction() {
+            const minimizeBtn = document.getElementById('settingsMinimize');
+            let isMinimized = false;
+            
+            minimizeBtn.addEventListener('click', function() {
+                if (isMinimized) {
+                    settingsPanel.classList.remove('minimized');
+                    minimizeBtn.textContent = '−';
+                    isMinimized = false;
+                } else {
+                    settingsPanel.classList.add('minimized');
+                    minimizeBtn.textContent = '□';
+                    isMinimized = true;
+                }
+            });
+        }
+        
+        // 設定の初期化
+        function initializeSettings() {
+            loadSettingsFromStorage();
+            updateSettingsUI();
+            applySettings();
+            
+            // ドラッグ機能と最小化機能の設定
+            setupDragFunctionality();
+            setupMinimizeFunction();
+            
+            // 設定ボタンのイベントリスナー
+            settingsBtn.addEventListener('click', toggleSettingsPanel);
+            
+            // スライダーのイベントリスナー
+            document.getElementById('bgPosX').addEventListener('input', function() {
+                currentSettings.bgPosX = parseInt(this.value);
+                document.getElementById('bgPosXValue').textContent = this.value + '%';
+                applySettings();
+            });
+            
+            document.getElementById('bgPosY').addEventListener('input', function() {
+                currentSettings.bgPosY = parseInt(this.value);
+                document.getElementById('bgPosYValue').textContent = this.value + '%';
+                applySettings();
+            });
+            
+            document.getElementById('bgSize').addEventListener('input', function() {
+                currentSettings.bgSize = parseInt(this.value);
+                document.getElementById('bgSizeValue').textContent = this.value + '%';
+                applySettings();
+            });
+            
+            document.getElementById('monitorPosX').addEventListener('input', function() {
+                currentSettings.monitorPosX = parseInt(this.value);
+                document.getElementById('monitorPosXValue').textContent = this.value + 'px';
+                applySettings();
+            });
+            
+            document.getElementById('monitorPosY').addEventListener('input', function() {
+                currentSettings.monitorPosY = parseInt(this.value);
+                document.getElementById('monitorPosYValue').textContent = this.value + 'px';
+                applySettings();
+            });
+            
+            document.getElementById('monitorSize').addEventListener('input', function() {
+                currentSettings.monitorSize = parseInt(this.value);
+                document.getElementById('monitorSizeValue').textContent = this.value + '%';
+                applySettings();
+            });
+            
+            document.getElementById('numberSize').addEventListener('input', function() {
+                currentSettings.numberSize = parseInt(this.value);
+                document.getElementById('numberSizeValue').textContent = this.value + '%';
+                applySettings();
+            });
+            
+            // ボタンのイベントリスナー
+            document.getElementById('saveSettings').addEventListener('click', function() {
+                saveSettingsToStorage();
+                settingsPanel.style.display = 'none';
+                alert('設定を保存しました');
+            });
+            
+            document.getElementById('resetSettings').addEventListener('click', function() {
+                if (confirm('設定をリセットしますか？')) {
+                    currentSettings = {...defaultSettings};
+                    updateSettingsUI();
+                    applySettings();
+                }
+            });
+            
+            document.getElementById('cancelSettings').addEventListener('click', function() {
+                settingsPanel.style.display = 'none';
             });
         }
 
@@ -468,6 +1265,15 @@
             if (unsubscribeCarNumber) {
                 unsubscribeCarNumber();
             }
+            if (unsubscribeCountdown) {
+                unsubscribeCountdown();
+            }
+            if (unsubscribeTeamProgress) {
+                unsubscribeTeamProgress();
+            }
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
             stopHeartbeat();
             window.location.href = 'index.html';
         }
@@ -476,6 +1282,9 @@
         document.addEventListener('DOMContentLoaded', function() {
             setupBackButton();
             
+            // 設定の初期化
+            initializeSettings();
+            
             // 接続監視開始
             startHeartbeat();
             
@@ -483,6 +1292,8 @@
             setTimeout(() => {
                 watchSelectedTeam();
                 watchCarNumber();
+                watchCountdownControl();
+                watchTeamProgress();
                 updateCarNumber();
             }, 1000);
         });
@@ -495,12 +1306,24 @@
             if (unsubscribeCarNumber) {
                 unsubscribeCarNumber();
             }
+            if (unsubscribeCountdown) {
+                unsubscribeCountdown();
+            }
+            if (unsubscribeTeamProgress) {
+                unsubscribeTeamProgress();
+            }
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
             stopHeartbeat();
         });
 
         // ページ非表示時のクリーンアップ
         window.addEventListener('visibilitychange', function() {
             if (document.hidden) {
+                if (countdownInterval) {
+                    clearInterval(countdownInterval);
+                }
                 stopHeartbeat();
             } else {
                 startHeartbeat();
