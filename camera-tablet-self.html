@@ -226,24 +226,9 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: 
-                #000000,
-                repeating-linear-gradient(
-                    0deg,
-                    rgba(0,0,0,1),
-                    rgba(0,0,0,1) 3px,
-                    rgba(255,255,255,0.03) 3px,
-                    rgba(255,255,255,0.03) 6px
-                ),
-                repeating-linear-gradient(
-                    90deg,
-                    rgba(0,0,0,1),
-                    rgba(0,0,0,1) 3px,
-                    rgba(255,255,255,0.03) 3px,
-                    rgba(255,255,255,0.03) 6px
-                );
+            background: #000000;
             pointer-events: none;
-            z-index: 10;
+            z-index: 100;
             opacity: 0;
             transition: opacity 0.5s ease;
         }
@@ -264,15 +249,15 @@
                     0deg,
                     rgba(255, 255, 255, 0.02),
                     rgba(255, 255, 255, 0.02) 1px,
-                    transparent 1px,
-                    transparent 4px
+                    rgba(0, 0, 0, 1) 1px,
+                    rgba(0, 0, 0, 1) 4px
                 ),
                 repeating-linear-gradient(
                     90deg,
                     rgba(255, 255, 255, 0.02),
                     rgba(255, 255, 255, 0.02) 1px,
-                    transparent 1px,
-                    transparent 4px
+                    rgba(0, 0, 0, 1) 1px,
+                    rgba(0, 0, 0, 1) 4px
                 );
             animation: gentle-static 0.3s linear infinite;
         }
@@ -295,11 +280,11 @@
             background: 
                 linear-gradient(
                     0deg,
-                    transparent 0%,
+                    rgba(0, 0, 0, 1) 0%,
                     rgba(255, 255, 255, 0.05) 20%,
-                    transparent 40%,
+                    rgba(0, 0, 0, 1) 40%,
                     rgba(255, 255, 255, 0.03) 60%,
-                    transparent 80%,
+                    rgba(0, 0, 0, 1) 80%,
                     rgba(255, 255, 255, 0.05) 100%
                 );
             animation: gentle-scan-lines 3s linear infinite;
@@ -318,56 +303,13 @@
             color: #ff4444;
             font-size: 4rem;
             font-weight: bold;
-            text-shadow: 
-                0 0 10px #ff4444,
-                0 0 20px #ff4444;
-            animation: gentle-glitch-text 1s linear infinite;
-            z-index: 11;
+            z-index: 101;
             text-align: center;
         }
 
-        @keyframes gentle-glitch-text {
-            0% { transform: translate(-50%, -50%) skew(0deg); }
-            25% { transform: translate(-50.5%, -49.5%) skew(0.5deg); }
-            50% { transform: translate(-49.5%, -50.5%) skew(-0.5deg); }
-            75% { transform: translate(-50%, -50%) skew(0deg); }
-            100% { transform: translate(-50%, -50%) skew(0deg); }
-        }
+
         
-        /* チーム情報表示 */
-        .team-info {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 14px;
-            z-index: 50;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            backdrop-filter: blur(10px);
-            display: none;
-        }
-        
-        .team-info.show {
-            display: block;
-        }
-        
-        .team-info.step0to3 {
-            border-color: #ff5722;
-            color: #ff5722;
-        }
-        
-        .team-info.step4to5 {
-            border-color: #4CAF50;
-            color: #4CAF50;
-        }
-        
-        .team-info.step6plus {
-            border-color: #3F51B5;
-            color: #3F51B5;
-        }
+
         
         /* タップ回数インジケーター */
         .tap-indicator {
@@ -538,10 +480,7 @@
         </div>
     </div>
     
-    <!-- チーム情報表示 -->
-    <div class="team-info" id="teamInfo">
-        <span id="teamDisplay">待機中...</span>
-    </div>
+
 
     <script>
         // Firebase設定
@@ -569,8 +508,6 @@
         const cameraVideo = document.getElementById('cameraVideo');
         const delayedCanvas = document.getElementById('delayedCanvas');
         const noiseOverlay = document.getElementById('noiseOverlay');
-        const teamInfo = document.getElementById('teamInfo');
-        const teamDisplay = document.getElementById('teamDisplay');
         const hiddenBackBtn = document.getElementById('hiddenBackBtn');
         const tapIndicator = document.getElementById('tapIndicator');
         
