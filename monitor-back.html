@@ -44,14 +44,60 @@
             align-items: center;
         }
         
-        /* 画像 */
-        #progressImage {
-            max-width: 100%;
-            max-height: 100%;
-            width: auto;
-            height: auto;
-            object-fit: contain;
-            display: none;
+        /* 背景画像 */
+        #backgroundImage {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        
+        /* 車両番号モニター */
+        .car-number-monitor {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 200px;
+            background: linear-gradient(45deg, #111111, #333333);
+            border: 3px solid #d4af37;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2;
+            box-shadow: 
+                0 10px 30px rgba(0, 0, 0, 0.8), 
+                inset 0 2px 10px rgba(255, 215, 0, 0.2),
+                0 0 20px rgba(212, 175, 55, 0.3);
+        }
+        
+        .monitor-header {
+            font-size: 14px;
+            color: #d4af37;
+            font-weight: bold;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+        
+        .monitor-car-number {
+            font-size: 48px;
+            font-weight: bold;
+            color: #d4af37;
+            text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+            font-family: 'Times New Roman', Times, serif;
+        }
+        
+        .monitor-suffix {
+            font-size: 16px;
+            color: #d4af37;
+            margin-top: 5px;
+            letter-spacing: 1px;
         }
         
         /* ローディングテキスト */
@@ -63,6 +109,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
+            z-index: 3;
         }
         
         /* タップ回数インジケーター */
@@ -107,7 +154,15 @@
     
     <!-- 画像表示エリア -->
     <div class="image-container">
-        <img id="progressImage" src="" alt="進捗画像">
+        <img id="backgroundImage" src="images/back/step_1.jpg" alt="モニター後背景">
+        
+        <!-- 車両番号モニター -->
+        <div class="car-number-monitor" id="carNumberMonitor">
+            <div class="monitor-header">GATANGO TRAIN</div>
+            <div class="monitor-car-number" id="monitorCarNumber">3600</div>
+            <div class="monitor-suffix">号車</div>
+        </div>
+        
         <p id="loadingText">画像を読み込み中...</p>
     </div>
 
@@ -121,9 +176,11 @@
 
         let selectedTeamData = null;
         let unsubscribeSelectedTeam = null;
+        let unsubscribeCarNumber = null;
         let heartbeatInterval = null;
         let tapCount = 0;
         let tapTimer = null;
+        let currentCarNumber = 3600;
 
         // DOM要素
         const hiddenBackBtn = document.getElementById('hiddenBackBtn');
@@ -170,41 +227,53 @@
             }
         }
 
-        // 画像を更新
-        function updateImage() {
+        // 車両番号を更新
+        function updateCarNumber() {
+            const monitorCarNumber = document.getElementById('monitorCarNumber');
+            monitorCarNumber.textContent = currentCarNumber;
+        }
+        
+        // 車両番号の変更を監視
+        function watchCarNumber() {
+            unsubscribeCarNumber = db.collection('global').doc('carNumberManual').onSnapshot((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    const newNumber = data.value || 3600;
+                    
+                    if (newNumber !== currentCarNumber) {
+                        currentCarNumber = newNumber;
+                        updateCarNumber();
+                    }
+                }
+            }, (error) => {
+                console.error('車両番号監視エラー:', error);
+            });
+        }
+        
+        // 表示を更新
+        function updateDisplay() {
+            const loadingText = document.getElementById('loadingText');
+            const backgroundImage = document.getElementById('backgroundImage');
+            const carNumberMonitor = document.getElementById('carNumberMonitor');
+            
             if (!selectedTeamData) {
-                const loadingText = document.getElementById('loadingText');
-                const img = document.getElementById('progressImage');
                 loadingText.textContent = 'スタッフがチームを選択していません';
-                img.style.display = 'none';
                 loadingText.style.display = 'block';
+                carNumberMonitor.style.display = 'none';
                 return;
             }
             
             // 選択されたチームの現在のステップを取得
             const currentStep = selectedTeamData.currentStep || 0;
             
-            // 画像パスを生成（ステップ1から8まで、back用）
-            const imagePath = `images/back/step_${currentStep + 1}.jpg`;
+            // 背景画像は常にstep_1を使用
+            backgroundImage.src = 'images/back/step_1.jpg';
             
-            // 画像を表示
-            const img = document.getElementById('progressImage');
-            const loadingText = document.getElementById('loadingText');
+            // モニターとローディングテキストの表示制御
+            loadingText.style.display = 'none';
+            carNumberMonitor.style.display = 'flex';
             
-            loadingText.textContent = `チーム${selectedTeamData.teamId} - ステップ${currentStep + 1} 読み込み中...`;
-            
-            img.onload = function() {
-                loadingText.style.display = 'none';
-                img.style.display = 'block';
-            };
-            
-            img.onerror = function() {
-                loadingText.textContent = `画像が見つかりません: ${imagePath}`;
-                img.style.display = 'none';
-                loadingText.style.display = 'block';
-            };
-            
-            img.src = imagePath;
+            console.log(`モニター後: チーム${selectedTeamData.teamId} - ステップ${currentStep + 1}`);
         }
 
         // 選択されたチームの変更を監視
@@ -212,10 +281,10 @@
             unsubscribeSelectedTeam = db.collection('monitor-back').doc('selectedTeam').onSnapshot((doc) => {
                 if (doc.exists) {
                     selectedTeamData = doc.data();
-                    updateImage();
+                    updateDisplay();
                 } else {
                     selectedTeamData = null;
-                    updateImage();
+                    updateDisplay();
                 }
             }, (error) => {
                 console.error('選択チーム監視エラー:', error);
@@ -262,6 +331,9 @@
             if (unsubscribeSelectedTeam) {
                 unsubscribeSelectedTeam();
             }
+            if (unsubscribeCarNumber) {
+                unsubscribeCarNumber();
+            }
             stopHeartbeat();
             window.location.href = 'index.html';
         }
@@ -273,9 +345,11 @@
             // 接続監視開始
             startHeartbeat();
             
-            // Firebase接続後に選択チームを監視
+            // Firebase接続後に監視開始
             setTimeout(() => {
                 watchSelectedTeam();
+                watchCarNumber();
+                updateCarNumber();
             }, 1000);
         });
 
@@ -283,6 +357,9 @@
         window.addEventListener('beforeunload', function() {
             if (unsubscribeSelectedTeam) {
                 unsubscribeSelectedTeam();
+            }
+            if (unsubscribeCarNumber) {
+                unsubscribeCarNumber();
             }
             stopHeartbeat();
         });
