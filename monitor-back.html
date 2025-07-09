@@ -1021,7 +1021,7 @@
         
         // チーム進捗を監視
         function watchTeamProgress() {
-            unsubscribeTeamProgress = db.collection('tabletTeamsBack').onSnapshot((snapshot) => {
+            unsubscribeTeamProgress = db.collection('tabletTeamsFront').onSnapshot((snapshot) => {
                 if (selectedTeamData) {
                     checkStep4Status();
                 }
@@ -1039,7 +1039,7 @@
             }
 
             try {
-                const teamDoc = await db.collection('tabletTeamsBack').doc(selectedTeamData.teamId.toString()).get();
+                const teamDoc = await db.collection('tabletTeamsFront').doc(selectedTeamData.teamId.toString()).get();
                 if (teamDoc.exists) {
                     const progress = teamDoc.data().progress || [];
                     // ステップ4（インデックス3）がクリアされているかチェック

@@ -448,7 +448,10 @@
                     <h3>🚃 車両番号制御（全チーム共通）</h3>
                     
             <div class="car-number-display">
-                現在の車両番号: <span id="currentCarNumber">3600</span>
+                <strong>現在の車両番号: <span id="currentCarNumber">3600</span></strong>
+                <div style="font-size: 0.8em; color: #666; margin-top: 5px;">
+                    ※ 車両番号前・後、モニター前・後の全画面で同期表示
+                </div>
             </div>
                     
                     <div class="car-number-controls">
@@ -660,6 +663,11 @@
         function updateCarNumberDisplay(number) {
             document.getElementById('currentCarNumber').textContent = number;
             document.getElementById('setTimeInput').value = number;
+            
+            console.log(`マスターで車両番号を一元管理: ${number}`);
+            console.log('▶ 車両番号前・後画面で同期表示');
+            console.log('▶ モニター前では表示値-1');
+            console.log('▶ モニター後では表示値+1');
         }
 
         // カウントダウン開始
@@ -837,6 +845,34 @@
             window.location.href = 'index.html';
         }
 
+        // 車両番号の初期化
+        async function initializeCarNumber() {
+            try {
+                const carDoc = await db.collection('global').doc('carNumberManual').get();
+                if (!carDoc.exists) {
+                    // 初期値を設定（マスターでのみ実行）
+                    await db.collection('global').doc('carNumberManual').set({
+                        value: 3600,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    console.log('車両番号の初期値を設定しました: 3600');
+                }
+                
+                // カウントダウンの初期化
+                const countdownDoc = await db.collection('global').doc('carNumberCountdown').get();
+                if (!countdownDoc.exists) {
+                    await db.collection('global').doc('carNumberCountdown').set({
+                        active: false,
+                        interval: 1000,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    console.log('カウントダウンの初期値を設定しました');
+                }
+            } catch (error) {
+                console.error('車両番号初期化エラー:', error);
+            }
+        }
+
         // 初期化
         document.addEventListener('DOMContentLoaded', function() {
             // 進捗データ初期化
@@ -848,6 +884,7 @@
             
             // Firebase接続後に監視開始
             setTimeout(async () => {
+                await initializeCarNumber();
                 watchCarNumberChanges();
                 watchCountdownChanges();
                 watchTeamProgressChanges();

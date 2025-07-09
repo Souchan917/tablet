@@ -611,7 +611,7 @@
 
         // チーム進捗を監視（後用）
         function watchTeamProgress() {
-            unsubscribeTeamProgress = db.collection('tabletTeamsBack').onSnapshot((snapshot) => {
+            unsubscribeTeamProgress = db.collection('tabletTeamsFront').onSnapshot((snapshot) => {
                 if (selectedTeamData) {
                     checkStep4Status();
                 }
@@ -629,7 +629,7 @@
             }
 
             try {
-                const teamDoc = await db.collection('tabletTeamsBack').doc(selectedTeamData.teamId.toString()).get();
+                const teamDoc = await db.collection('tabletTeamsFront').doc(selectedTeamData.teamId.toString()).get();
                 if (teamDoc.exists) {
                     const progress = teamDoc.data().progress || [];
                     // ステップ4（インデックス3）がクリアされているかチェック
@@ -652,16 +652,17 @@
                 if (carDoc.exists) {
                     currentCarNumber = carDoc.data().value || 3600;
                 } else {
-                    // 初期値を設定
-                    await db.collection('global').doc('carNumberManual').set({
-                        value: 3600,
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                    });
+                    // マスターで管理されるため、初期値は3600に設定
+                    currentCarNumber = 3600;
                 }
                 document.getElementById('carNumber').textContent = currentCarNumber;
                 updateDigitClass(currentCarNumber);
             } catch (error) {
                 console.error('車両番号の取得に失敗:', error);
+                // エラーの場合はデフォルト値を使用
+                currentCarNumber = 3600;
+                document.getElementById('carNumber').textContent = currentCarNumber;
+                updateDigitClass(currentCarNumber);
             }
         }
 
