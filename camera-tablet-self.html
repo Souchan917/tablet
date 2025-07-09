@@ -571,21 +571,124 @@
             console.log(`[Camera Tablet] ${message}`);
         }
         
-        // 初期化
-        document.addEventListener('DOMContentLoaded', function() {
-            log('アプリ初期化開始');
-            setupBackButton();
-            searchCameras();
+        // 選択されたチームを監視
+        function watchSelectedTeam() {
+            selectedTeamUnsubscribe = db.collection('monitor-front').doc('selectedTeam').onSnapshot((doc) => {
+                if (doc.exists) {
+                    selectedTeamData = doc.data();
+                    log('選択チーム更新: ' + JSON.stringify(selectedTeamData));
+                    checkStepStatus();
+                } else {
+                    selectedTeamData = null;
+                    isStep4Cleared = false;
+                    updateDisplayBasedOnProgress();
+                }
+            }, (error) => {
+                console.error('選択チーム監視エラー:', error);
+            });
+        }
+
+        // チーム進捗を監視
+        function watchTeamProgress() {
+            teamProgressUnsubscribe = db.collection('tabletTeamsFront').onSnapshot((snapshot) => {
+                if (selectedTeamData) {
+                    checkStepStatus();
+                }
+            }, (error) => {
+                console.error('チーム進捗監視エラー:', error);
+            });
+        }
+
+        // ステップの状況をチェック
+        async function checkStepStatus() {
+            if (!selectedTeamData) {
+                isStep4Cleared = false;
+                updateDisplayBasedOnProgress();
+                return;
+            }
+
+            try {
+                const teamDoc = await db.collection('tabletTeamsFront').doc(selectedTeamData.teamId.toString()).get();
+                if (teamDoc.exists) {
+                    const progress = teamDoc.data().progress || [];
+                    // ステップ4（インデックス3）がクリアされているかチェック
+                    const step4Cleared = progress[3] === true;
+                    // ステップ6（インデックス5）がクリアされているかチェック
+                    const step6Cleared = progress[5] === true;
+                    
+                    isStep4Cleared = step4Cleared;
+                    
+                    log(`チーム${selectedTeamData.teamId} - ステップ4: ${step4Cleared}, ステップ6: ${step6Cleared}`);
+                    
+                    // 進捗に応じて表示モードを決定
+                    let displayMode;
+                    if (!step4Cleared) {
+                        displayMode = 'noise'; // ノイズ表示
+                    } else if (!step6Cleared) {
+                        displayMode = 'normal'; // 通常映像
+                    } else {
+                        displayMode = 'delayed'; // 1秒遅延映像
+                    }
+                    
+                    updateDisplayBasedOnProgress(displayMode);
+                } else {
+                    isStep4Cleared = false;
+                    updateDisplayBasedOnProgress();
+                }
+            } catch (error) {
+                console.error('ステップチェックエラー:', error);
+                isStep4Cleared = false;
+                updateDisplayBasedOnProgress();
+            }
+        }
+
+        // 進捗に応じて表示を更新
+        function updateDisplayBasedOnProgress(mode = 'noise') {
+            if (!cameraStream) {
+                // カメラが起動していない場合は何もしない
+                return;
+            }
             
-            // 接続監視開始
-            startHeartbeat();
+            log(`表示モード切り替え: ${mode}`);
             
-            // 車両番号と同じシステムで監視開始
-            watchSelectedTeam();
-            watchTeamProgress();
-            
-            log('アプリ初期化完了');
-        });
+            switch (mode) {
+                case 'noise':
+                    // ステップ4未クリア: ノイズオーバーレイを表示
+                    showNoiseOverlay();
+                    break;
+                    
+                case 'normal':
+                    // ステップ4クリア、6未クリア: 通常映像
+                    showNormalVideo();
+                    break;
+                    
+                case 'delayed':
+                    // ステップ6クリア: 1秒遅れ映像
+                    showDelayedVideo();
+                    break;
+                    
+                default:
+                    showNoiseOverlay();
+            }
+        }
+        
+                    // 初期化
+            document.addEventListener('DOMContentLoaded', function() {
+                log('アプリ初期化開始');
+                setupBackButton();
+                searchCameras();
+                
+                // 接続監視開始
+                startHeartbeat();
+                
+                // Firebase監視開始
+                setTimeout(() => {
+                    watchSelectedTeam();
+                    watchTeamProgress();
+                }, 1000);
+                
+                log('アプリ初期化完了');
+            });
         
         // 戻るボタンの設定
         function setupBackButton() {
@@ -783,7 +886,13 @@
                         // ローディングオーバーレイを隠す
                         setTimeout(() => {
                             loadingOverlay.classList.add('hidden');
-                            teamInfo.classList.add('show');
+                            
+                            // カメラ起動後に進捗に応じた表示を適用
+                            if (selectedTeamData) {
+                                checkStepStatus();
+                            } else {
+                                updateDisplayBasedOnProgress('noise');
+                            }
                         }, 500);
                         
                         // カメラ情報をログ出力
@@ -820,126 +929,7 @@
             }
         }
         
-        // 選択されたチームの監視（車両番号と同じシステム）
-        function watchSelectedTeam() {
-            selectedTeamUnsubscribe = db.collection('monitor-front').doc('selectedTeam').onSnapshot((doc) => {
-                if (doc.exists) {
-                    selectedTeamData = doc.data();
-                    log(`選択されたチーム変更: チーム${selectedTeamData.teamId}`);
-                    checkStepStatus();
-                } else {
-                    selectedTeamData = null;
-                    isStep4Cleared = false;
-                    updateDisplay();
-                }
-            });
-        }
-        
-        // チーム進捗の監視（車両番号と同じシステム）
-        function watchTeamProgress() {
-            teamProgressUnsubscribe = db.collection('tabletTeamsFront').onSnapshot((snapshot) => {
-                if (selectedTeamData) {
-                    checkStepStatus();
-                }
-            });
-        }
-        
-        // ステップ状況をチェック
-        async function checkStepStatus() {
-            if (!selectedTeamData) {
-                isStep4Cleared = false;
-                updateDisplay();
-                return;
-            }
 
-            try {
-                const teamDoc = await db.collection('tabletTeamsFront').doc(selectedTeamData.teamId.toString()).get();
-                if (teamDoc.exists) {
-                    const progress = teamDoc.data().progress || [];
-                    
-                    // ステップ4（インデックス3）がクリアされているかチェック
-                    isStep4Cleared = progress[3] === true;
-                    
-                    // ステップ6（インデックス5）がクリアされているかチェック
-                    const isStep6Cleared = progress[5] === true;
-                    
-                    log(`チーム${selectedTeamData.teamId} - ステップ4: ${isStep4Cleared}, ステップ6: ${isStep6Cleared}`);
-                    
-                    // 表示状態を決定
-                    let displayMode = 'noise'; // デフォルトはノイズ
-                    if (isStep4Cleared) {
-                        if (isStep6Cleared) {
-                            displayMode = 'delayed'; // ステップ6クリア: 1秒遅れ
-                        } else {
-                            displayMode = 'normal'; // ステップ4クリア、6未クリア: 通常
-                        }
-                    }
-                    
-                    updateDisplayMode(displayMode);
-                    
-                } else {
-                    isStep4Cleared = false;
-                    updateDisplayMode('noise');
-                }
-            } catch (error) {
-                log(`ステップ状況チェックエラー: ${error.message}`);
-                isStep4Cleared = false;
-                updateDisplayMode('noise');
-            }
-        }
-        
-
-        
-        // 表示を更新（待機状態用）
-        function updateDisplay() {
-            teamDisplay.textContent = '待機中...';
-            teamInfo.className = 'team-info show';
-            showNormalVideo();
-            log('表示更新: 待機中');
-        }
-        
-        // 表示モードを更新
-        function updateDisplayMode(mode) {
-            if (!selectedTeamData) {
-                updateDisplay();
-                return;
-            }
-            
-            // チーム情報を表示
-            teamDisplay.textContent = `チーム${selectedTeamData.teamId}`;
-            
-            // 進捗に応じて表示を変更
-            teamInfo.classList.remove('step0to3', 'step4to5', 'step6plus');
-            
-            log(`表示モード更新: チーム${selectedTeamData.teamId} - モード: ${mode}`);
-            
-            switch (mode) {
-                case 'noise':
-                    // ステップ4未クリア: ノイズオーバーレイを表示
-                    teamInfo.classList.add('step0to3');
-                    showNoiseOverlay();
-                    log('ノイズオーバーレイ表示（ステップ4未クリア）');
-                    break;
-                    
-                case 'normal':
-                    // ステップ4クリア、6未クリア: 通常映像
-                    teamInfo.classList.add('step4to5');
-                    showNormalVideo();
-                    log('通常映像表示（ステップ4クリア、6未クリア）');
-                    break;
-                    
-                case 'delayed':
-                    // ステップ6クリア: 1秒遅れ映像
-                    teamInfo.classList.add('step6plus');
-                    showDelayedVideo();
-                    log('1秒遅れ映像表示（ステップ6クリア）');
-                    break;
-                    
-                default:
-                    showNormalVideo();
-                    log(`未知の表示モード: ${mode}`);
-            }
-        }
         
         // ノイズオーバーレイを表示
         function showNoiseOverlay() {
