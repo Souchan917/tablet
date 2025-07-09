@@ -920,7 +920,13 @@
                     
                     if (newNumber !== currentCarNumber) {
                         currentCarNumber = newNumber;
-                        updateCarNumber();
+                        
+                        // カウントダウンがアクティブな場合はアニメーション付きで表示
+                        if (isCountdownActive) {
+                            updateDisplayWithAnimation();
+                        } else {
+                            updateCarNumber();
+                        }
                     }
                 }
             }, (error) => {
@@ -928,18 +934,17 @@
             });
         }
         
-        // カウントダウン制御の監視（ローカル実行 + 定期同期）
+        // カウントダウン制御の監視（マスター専用、他の画面は停止）
         function watchCountdownControl() {
             unsubscribeCountdown = db.collection('global').doc('carNumberCountdown').onSnapshot((doc) => {
                 if (doc.exists) {
                     const data = doc.data();
                     const newActive = data.active || false;
-                    const interval = data.interval || 1000;
                     
                     // カウントダウン状態が変わった場合
                     if (newActive !== isCountdownActive) {
                         isCountdownActive = newActive;
-                        countdownIntervalMs = interval;
+                        console.log('モニター後画面 - カウントダウン状態:', isCountdownActive ? 'アクティブ' : '停止');
                         
                         // 既存のインターバルを停止
                         if (countdownInterval) {
@@ -951,55 +956,14 @@
                             syncInterval = null;
                         }
                         
-                        if (isCountdownActive) {
-                            // ローカルカウントダウン開始
-                            console.log('モニター後ローカルカウントダウン開始 - 間隔:', interval, 'ミリ秒');
-                            startLocalCountdown();
-                            
-                            // 10秒ごとに同期
-                            syncInterval = setInterval(syncWithMaster, 10000);
-                        } else {
-                            console.log('モニター後ローカルカウントダウン停止');
-                        }
+                        // モニター後画面ではローカルカウントダウンを実行しない
+                        // マスターのFirebase更新のみを監視
+                        console.log('モニター後画面 - マスターのFirebase更新のみを監視');
                     }
                 }
             }, (error) => {
                 console.error('カウントダウン制御監視エラー:', error);
             });
-        }
-
-        // ローカルカウントダウン開始
-        function startLocalCountdown() {
-            countdownInterval = setInterval(() => {
-                if (currentCarNumber > 0) {
-                    currentCarNumber--;
-                    updateDisplayWithAnimation();
-                } else {
-                    // 0になったら停止
-                    clearInterval(countdownInterval);
-                    countdownInterval = null;
-                    isCountdownActive = false;
-                }
-            }, countdownIntervalMs);
-        }
-
-        // マスターと同期
-        async function syncWithMaster() {
-            try {
-                const doc = await db.collection('global').doc('carNumberManual').get();
-                if (doc.exists) {
-                    const masterValue = doc.data().value || 3600;
-                    
-                    // マスターとの差が大きい場合は同期
-                    if (Math.abs(currentCarNumber - masterValue) > 2) {
-                        console.log('マスターと同期:', currentCarNumber, '->', masterValue);
-                        currentCarNumber = masterValue;
-                        updateCarNumber();
-                    }
-                }
-            } catch (error) {
-                console.error('モニター後同期エラー:', error);
-            }
         }
         
         // 表示を更新
