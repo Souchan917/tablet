@@ -216,24 +216,9 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: 
-                radial-gradient(circle, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.98) 50%, rgba(0,0,0,1) 100%),
-                repeating-linear-gradient(
-                    0deg,
-                    transparent,
-                    transparent 3px,
-                    rgba(255,255,255,0.03) 3px,
-                    rgba(255,255,255,0.03) 6px
-                ),
-                repeating-linear-gradient(
-                    90deg,
-                    transparent,
-                    transparent 3px,
-                    rgba(255,255,255,0.03) 3px,
-                    rgba(255,255,255,0.03) 6px
-                );
+            background: #000000;
             pointer-events: none;
-            z-index: 10;
+            z-index: 100;
             opacity: 0;
             transition: opacity 0.5s ease;
         }
@@ -254,15 +239,15 @@
                     0deg,
                     rgba(255, 255, 255, 0.02),
                     rgba(255, 255, 255, 0.02) 1px,
-                    transparent 1px,
-                    transparent 4px
+                    rgba(0, 0, 0, 1) 1px,
+                    rgba(0, 0, 0, 1) 4px
                 ),
                 repeating-linear-gradient(
                     90deg,
                     rgba(255, 255, 255, 0.02),
                     rgba(255, 255, 255, 0.02) 1px,
-                    transparent 1px,
-                    transparent 4px
+                    rgba(0, 0, 0, 1) 1px,
+                    rgba(0, 0, 0, 1) 4px
                 );
             animation: gentle-static 0.3s linear infinite;
         }
@@ -285,11 +270,11 @@
             background: 
                 linear-gradient(
                     0deg,
-                    transparent 0%,
+                    rgba(0, 0, 0, 1) 0%,
                     rgba(255, 255, 255, 0.05) 20%,
-                    transparent 40%,
+                    rgba(0, 0, 0, 1) 40%,
                     rgba(255, 255, 255, 0.03) 60%,
-                    transparent 80%,
+                    rgba(0, 0, 0, 1) 80%,
                     rgba(255, 255, 255, 0.05) 100%
                 );
             animation: gentle-scan-lines 3s linear infinite;
@@ -308,11 +293,7 @@
             color: #ff4444;
             font-size: 4rem;
             font-weight: bold;
-            text-shadow: 
-                0 0 10px #ff4444,
-                0 0 20px #ff4444;
-            animation: gentle-glitch-text 1s linear infinite;
-            z-index: 11;
+            z-index: 101;
             text-align: center;
         }
 
@@ -430,7 +411,7 @@
         <div class="train-car-number-display">
             <div class="train-car-frame">
                 <div class="noise-overlay" id="noiseOverlay">
-                    <div class="noise-text">ACCESS DENIED</div>
+                    <div class="noise-text">電源装置が作動していません</div>
                 </div>
                 
                 <div class="train-emblem">
@@ -463,6 +444,9 @@
         let countdownInterval = null;
         let selectedTeamData = null;
         let isStep4Cleared = false;
+        let syncInterval = null; // 同期用インターバル
+        let isCountdownActive = false; // カウントダウン状態
+        let countdownIntervalMs = 1000; // カウントダウン間隔
 
         // 隠しボタン（左上5回タップ）
         let tapCount = 0;
@@ -551,20 +535,79 @@
             });
         }
 
-        // カウントダウン制御の監視（マスター管理のため監視のみ）
+        // カウントダウン制御の監視（ローカル実行 + 定期同期）
         function watchCountdownControl() {
             unsubscribeCountdown = db.collection('global').doc('carNumberCountdown').onSnapshot((doc) => {
                 if (doc.exists) {
                     const data = doc.data();
-                    const isActive = data.active || false;
+                    const newActive = data.active || false;
                     const interval = data.interval || 1000;
                     
-                    // カウントダウンはマスターで実行されるため、ここでは状態監視のみ
-                    console.log('カウントダウン状態:', isActive ? '実行中' : '停止中', '- 間隔:', interval, 'ミリ秒');
+                    // カウントダウン状態が変わった場合
+                    if (newActive !== isCountdownActive) {
+                        isCountdownActive = newActive;
+                        countdownIntervalMs = interval;
+                        
+                        // 既存のインターバルを停止
+                        if (countdownInterval) {
+                            clearInterval(countdownInterval);
+                            countdownInterval = null;
+                        }
+                        if (syncInterval) {
+                            clearInterval(syncInterval);
+                            syncInterval = null;
+                        }
+                        
+                        if (isCountdownActive) {
+                            // ローカルカウントダウン開始
+                            console.log('ローカルカウントダウン開始 - 間隔:', interval, 'ミリ秒');
+                            startLocalCountdown();
+                            
+                            // 10秒ごとに同期
+                            syncInterval = setInterval(syncWithMaster, 10000);
+                        } else {
+                            console.log('ローカルカウントダウン停止');
+                        }
+                    }
                 }
             }, (error) => {
                 console.error('カウントダウン制御監視エラー:', error);
             });
+        }
+
+        // ローカルカウントダウン開始
+        function startLocalCountdown() {
+            countdownInterval = setInterval(() => {
+                if (currentCarNumber > 0) {
+                    currentCarNumber--;
+                    updateDisplay(currentCarNumber);
+                } else {
+                    // 0になったら停止
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    isCountdownActive = false;
+                }
+            }, countdownIntervalMs);
+        }
+
+        // マスターと同期
+        async function syncWithMaster() {
+            try {
+                const doc = await db.collection('global').doc('carNumberManual').get();
+                if (doc.exists) {
+                    const masterValue = doc.data().value || 3600;
+                    
+                    // マスターとの差が大きい場合は同期
+                    if (Math.abs(currentCarNumber - masterValue) > 2) {
+                        console.log('マスターと同期:', currentCarNumber, '->', masterValue);
+                        currentCarNumber = masterValue;
+                        document.getElementById('carNumber').textContent = currentCarNumber;
+                        updateDigitClass(currentCarNumber);
+                    }
+                }
+            } catch (error) {
+                console.error('同期エラー:', error);
+            }
         }
 
         // 選択されたチームを監視（後用）
@@ -658,6 +701,9 @@
             if (countdownInterval) {
                 clearInterval(countdownInterval);
             }
+            if (syncInterval) {
+                clearInterval(syncInterval);
+            }
             window.location.href = 'index.html';
         }
 
@@ -692,6 +738,9 @@
             }
             if (countdownInterval) {
                 clearInterval(countdownInterval);
+            }
+            if (syncInterval) {
+                clearInterval(syncInterval);
             }
         });
     </script>

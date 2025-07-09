@@ -243,24 +243,9 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: 
-                radial-gradient(circle, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.98) 50%, rgba(0,0,0,1) 100%),
-                repeating-linear-gradient(
-                    0deg,
-                    transparent,
-                    transparent 3px,
-                    rgba(255,255,255,0.03) 3px,
-                    rgba(255,255,255,0.03) 6px
-                ),
-                repeating-linear-gradient(
-                    90deg,
-                    transparent,
-                    transparent 3px,
-                    rgba(255,255,255,0.03) 3px,
-                    rgba(255,255,255,0.03) 6px
-                );
+            background: #000000;
             pointer-events: none;
-            z-index: 10;
+            z-index: 100;
             opacity: 0;
             transition: opacity 0.5s ease;
         }
@@ -281,15 +266,15 @@
                     0deg,
                     rgba(255, 255, 255, 0.02),
                     rgba(255, 255, 255, 0.02) 1px,
-                    transparent 1px,
-                    transparent 4px
+                    rgba(0, 0, 0, 1) 1px,
+                    rgba(0, 0, 0, 1) 4px
                 ),
                 repeating-linear-gradient(
                     90deg,
                     rgba(255, 255, 255, 0.02),
                     rgba(255, 255, 255, 0.02) 1px,
-                    transparent 1px,
-                    transparent 4px
+                    rgba(0, 0, 0, 1) 1px,
+                    rgba(0, 0, 0, 1) 4px
                 );
             animation: gentle-static 0.3s linear infinite;
         }
@@ -312,11 +297,11 @@
             background: 
                 linear-gradient(
                     0deg,
-                    transparent 0%,
+                    rgba(0, 0, 0, 1) 0%,
                     rgba(255, 255, 255, 0.05) 20%,
-                    transparent 40%,
+                    rgba(0, 0, 0, 1) 40%,
                     rgba(255, 255, 255, 0.03) 60%,
-                    transparent 80%,
+                    rgba(0, 0, 0, 1) 80%,
                     rgba(255, 255, 255, 0.05) 100%
                 );
             animation: gentle-scan-lines 3s linear infinite;
@@ -333,13 +318,9 @@
             left: 50%;
             transform: translate(-50%, -50%);
             color: #ff4444;
-            font-size: 1.5rem;
+            font-size: 4rem;
             font-weight: bold;
-            text-shadow: 
-                0 0 10px #ff4444,
-                0 0 20px #ff4444;
-            animation: gentle-glitch-text 1s linear infinite;
-            z-index: 11;
+            z-index: 101;
             text-align: center;
         }
 
@@ -610,6 +591,16 @@
             #loadingText {
                 font-size: 18px;
             }
+            
+            .noise-text {
+                font-size: 2rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .noise-text {
+                font-size: 1.5rem;
+            }
         }
     </style>
 </head>
@@ -748,6 +739,9 @@
         let currentCarNumber = 3600;
         let countdownInterval = null;
         let isStep4Cleared = false;
+        let syncInterval = null; // 同期用インターバル
+        let isCountdownActive = false; // カウントダウン状態
+        let countdownIntervalMs = 1000; // カウントダウン間隔
 
         // DOM要素
         const hiddenBackBtn = document.getElementById('hiddenBackBtn');
@@ -940,38 +934,78 @@
             });
         }
         
-        // カウントダウン制御の監視
+        // カウントダウン制御の監視（ローカル実行 + 定期同期）
         function watchCountdownControl() {
             unsubscribeCountdown = db.collection('global').doc('carNumberCountdown').onSnapshot((doc) => {
                 if (doc.exists) {
                     const data = doc.data();
-                    const isActive = data.active || false;
+                    const newActive = data.active || false;
                     const interval = data.interval || 1000;
                     
-                    // 既存のカウントダウンを停止
-                    if (countdownInterval) {
-                        clearInterval(countdownInterval);
-                        countdownInterval = null;
-                    }
-                    
-                    if (isActive) {
-                        // カウントダウン開始（ローカル処理）
-                        console.log('カウントダウン開始 - 間隔:', interval, 'ミリ秒');
-                        countdownInterval = setInterval(() => {
-                            if (currentCarNumber > 0) {
-                                currentCarNumber--;
-                                updateDisplayWithAnimation();
-                            } else {
-                                // 0になったらカウントダウン停止
-                                clearInterval(countdownInterval);
-                                countdownInterval = null;
-                            }
-                        }, interval);
+                    // カウントダウン状態が変わった場合
+                    if (newActive !== isCountdownActive) {
+                        isCountdownActive = newActive;
+                        countdownIntervalMs = interval;
+                        
+                        // 既存のインターバルを停止
+                        if (countdownInterval) {
+                            clearInterval(countdownInterval);
+                            countdownInterval = null;
+                        }
+                        if (syncInterval) {
+                            clearInterval(syncInterval);
+                            syncInterval = null;
+                        }
+                        
+                        if (isCountdownActive) {
+                            // ローカルカウントダウン開始
+                            console.log('モニター後ローカルカウントダウン開始 - 間隔:', interval, 'ミリ秒');
+                            startLocalCountdown();
+                            
+                            // 10秒ごとに同期
+                            syncInterval = setInterval(syncWithMaster, 10000);
+                        } else {
+                            console.log('モニター後ローカルカウントダウン停止');
+                        }
                     }
                 }
             }, (error) => {
                 console.error('カウントダウン制御監視エラー:', error);
             });
+        }
+
+        // ローカルカウントダウン開始
+        function startLocalCountdown() {
+            countdownInterval = setInterval(() => {
+                if (currentCarNumber > 0) {
+                    currentCarNumber--;
+                    updateDisplayWithAnimation();
+                } else {
+                    // 0になったら停止
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    isCountdownActive = false;
+                }
+            }, countdownIntervalMs);
+        }
+
+        // マスターと同期
+        async function syncWithMaster() {
+            try {
+                const doc = await db.collection('global').doc('carNumberManual').get();
+                if (doc.exists) {
+                    const masterValue = doc.data().value || 3600;
+                    
+                    // マスターとの差が大きい場合は同期
+                    if (Math.abs(currentCarNumber - masterValue) > 2) {
+                        console.log('マスターと同期:', currentCarNumber, '->', masterValue);
+                        currentCarNumber = masterValue;
+                        updateCarNumber();
+                    }
+                }
+            } catch (error) {
+                console.error('モニター後同期エラー:', error);
+            }
         }
         
         // 表示を更新
@@ -1274,6 +1308,9 @@
             if (countdownInterval) {
                 clearInterval(countdownInterval);
             }
+            if (syncInterval) {
+                clearInterval(syncInterval);
+            }
             stopHeartbeat();
             window.location.href = 'index.html';
         }
@@ -1315,6 +1352,9 @@
             if (countdownInterval) {
                 clearInterval(countdownInterval);
             }
+            if (syncInterval) {
+                clearInterval(syncInterval);
+            }
             stopHeartbeat();
         });
 
@@ -1323,6 +1363,9 @@
             if (document.hidden) {
                 if (countdownInterval) {
                     clearInterval(countdownInterval);
+                }
+                if (syncInterval) {
+                    clearInterval(syncInterval);
                 }
                 stopHeartbeat();
             } else {

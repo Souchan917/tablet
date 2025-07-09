@@ -449,6 +449,9 @@
         let selectedTeamData = null;
         let isStep4Cleared = false;
         let heartbeatInterval = null;
+        let syncInterval = null; // 同期用インターバル
+        let isCountdownActive = false; // カウントダウン状態
+        let countdownIntervalMs = 1000; // カウントダウン間隔
 
         // 接続監視のハートビート送信
         function sendHeartbeat() {
@@ -578,20 +581,79 @@
             });
         }
 
-        // カウントダウン制御の監視（マスター管理のため監視のみ）
+        // カウントダウン制御の監視（ローカル実行 + 定期同期）
         function watchCountdownControl() {
             unsubscribeCountdown = db.collection('global').doc('carNumberCountdown').onSnapshot((doc) => {
                 if (doc.exists) {
                     const data = doc.data();
-                    const isActive = data.active || false;
+                    const newActive = data.active || false;
                     const interval = data.interval || 1000;
                     
-                    // カウントダウンはマスターで実行されるため、ここでは状態監視のみ
-                    console.log('カウントダウン状態:', isActive ? '実行中' : '停止中', '- 間隔:', interval, 'ミリ秒');
+                    // カウントダウン状態が変わった場合
+                    if (newActive !== isCountdownActive) {
+                        isCountdownActive = newActive;
+                        countdownIntervalMs = interval;
+                        
+                        // 既存のインターバルを停止
+                        if (countdownInterval) {
+                            clearInterval(countdownInterval);
+                            countdownInterval = null;
+                        }
+                        if (syncInterval) {
+                            clearInterval(syncInterval);
+                            syncInterval = null;
+                        }
+                        
+                        if (isCountdownActive) {
+                            // ローカルカウントダウン開始
+                            console.log('ローカルカウントダウン開始 - 間隔:', interval, 'ミリ秒');
+                            startLocalCountdown();
+                            
+                            // 10秒ごとに同期
+                            syncInterval = setInterval(syncWithMaster, 10000);
+                        } else {
+                            console.log('ローカルカウントダウン停止');
+                        }
+                    }
                 }
             }, (error) => {
                 console.error('カウントダウン制御監視エラー:', error);
             });
+        }
+
+        // ローカルカウントダウン開始
+        function startLocalCountdown() {
+            countdownInterval = setInterval(() => {
+                if (currentCarNumber > 0) {
+                    currentCarNumber--;
+                    updateDisplay(currentCarNumber);
+                } else {
+                    // 0になったら停止
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    isCountdownActive = false;
+                }
+            }, countdownIntervalMs);
+        }
+
+        // マスターと同期
+        async function syncWithMaster() {
+            try {
+                const doc = await db.collection('global').doc('carNumberManual').get();
+                if (doc.exists) {
+                    const masterValue = doc.data().value || 3600;
+                    
+                    // マスターとの差が大きい場合は同期
+                    if (Math.abs(currentCarNumber - masterValue) > 2) {
+                        console.log('マスターと同期:', currentCarNumber, '->', masterValue);
+                        currentCarNumber = masterValue;
+                        document.getElementById('carNumber').textContent = currentCarNumber;
+                        updateDigitClass(currentCarNumber);
+                    }
+                }
+            } catch (error) {
+                console.error('同期エラー:', error);
+            }
         }
 
         // 選択されたチームを監視
@@ -685,6 +747,9 @@
             if (countdownInterval) {
                 clearInterval(countdownInterval);
             }
+            if (syncInterval) {
+                clearInterval(syncInterval);
+            }
             stopHeartbeat();
             window.location.href = 'index.html';
         }
@@ -723,6 +788,9 @@
             }
             if (countdownInterval) {
                 clearInterval(countdownInterval);
+            }
+            if (syncInterval) {
+                clearInterval(syncInterval);
             }
             stopHeartbeat();
         });
