@@ -573,6 +573,7 @@
         
         // 選択されたチームを監視
         function watchSelectedTeam() {
+            log('Firebase監視開始: 選択チーム');
             selectedTeamUnsubscribe = db.collection('monitor-front').doc('selectedTeam').onSnapshot((doc) => {
                 if (doc.exists) {
                     selectedTeamData = doc.data();
@@ -581,6 +582,7 @@
                 } else {
                     selectedTeamData = null;
                     isStep4Cleared = false;
+                    log('選択チームなし - デフォルトノイズ表示');
                     updateDisplayBasedOnProgress();
                 }
             }, (error) => {
@@ -590,9 +592,13 @@
 
         // チーム進捗を監視
         function watchTeamProgress() {
+            log('Firebase監視開始: チーム進捗');
             teamProgressUnsubscribe = db.collection('tabletTeamsFront').onSnapshot((snapshot) => {
+                log('チーム進捗データ更新');
                 if (selectedTeamData) {
                     checkStepStatus();
+                } else {
+                    log('選択チームなし - 進捗チェックスキップ');
                 }
             }, (error) => {
                 console.error('チーム進捗監視エラー:', error);
@@ -602,12 +608,14 @@
         // ステップの状況をチェック
         async function checkStepStatus() {
             if (!selectedTeamData) {
+                log('選択チームなし - ノイズ表示');
                 isStep4Cleared = false;
                 updateDisplayBasedOnProgress();
                 return;
             }
 
             try {
+                log(`チーム${selectedTeamData.teamId}の進捗をチェック中...`);
                 const teamDoc = await db.collection('tabletTeamsFront').doc(selectedTeamData.teamId.toString()).get();
                 if (teamDoc.exists) {
                     const progress = teamDoc.data().progress || [];
@@ -624,14 +632,18 @@
                     let displayMode;
                     if (!step4Cleared) {
                         displayMode = 'noise'; // ノイズ表示
+                        log('→ ノイズオーバーレイ表示（ステップ4未クリア）');
                     } else if (!step6Cleared) {
                         displayMode = 'normal'; // 通常映像
+                        log('→ 通常映像表示（ステップ4クリア、6未クリア）');
                     } else {
                         displayMode = 'delayed'; // 1秒遅延映像
+                        log('→ 1秒遅延映像表示（ステップ6クリア）');
                     }
                     
                     updateDisplayBasedOnProgress(displayMode);
                 } else {
+                    log(`チーム${selectedTeamData.teamId}のドキュメントが見つかりません`);
                     isStep4Cleared = false;
                     updateDisplayBasedOnProgress();
                 }
