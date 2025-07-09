@@ -439,6 +439,18 @@
         const totalSteps = 8;
         const totalTeams = 10;
         let currentSelectedTeamId = null;
+        
+        // ステップタイトル配列
+        const stepTitles = [
+            '合言葉伝える',
+            'はがき送る',
+            '扉開かない',
+            '起動カード壁越し',
+            'じゃんけん負ける',
+            'カメラ後ろに送る',
+            'じゃんけん勝つ',
+            '起動カード置いて成功'
+        ];
         let connectionCheckInterval = null;
 
         // 接続状況監視
@@ -643,7 +655,7 @@
                 for (let stepId = 1; stepId <= totalSteps; stepId++) {
                     const stepBtn = document.createElement('button');
                     stepBtn.className = 'step-btn';
-                    stepBtn.textContent = stepId;
+                    stepBtn.textContent = `${stepId} ${stepTitles[stepId - 1]}`;
                     stepBtn.onclick = () => toggleStep(teamId, stepId);
                     stepsContainer.appendChild(stepBtn);
                 }
