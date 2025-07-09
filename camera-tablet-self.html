@@ -537,6 +537,12 @@
         let selectedTeamUnsubscribe = null;
         let heartbeatInterval = null;
         
+        // パフォーマンス監視用変数
+        let performanceLevel = 'auto'; // auto, high, medium, low
+        let frameDropCount = 0;
+        let lastFrameTime = 0;
+        let performanceCheckInterval = null;
+        
         // 接続監視のハートビート送信
         function sendHeartbeat() {
             try {
@@ -581,6 +587,132 @@
         // ログ機能
         function log(message) {
             console.log(`[Camera Tablet] ${message}`);
+        }
+        
+        // デバイス性能を推定
+        function estimateDevicePerformance() {
+            const userAgent = navigator.userAgent.toLowerCase();
+            const screenSize = window.screen.width * window.screen.height;
+            const deviceMemory = navigator.deviceMemory || 4; // GB
+            const hardwareConcurrency = navigator.hardwareConcurrency || 4;
+            
+            // 古いタブレットの判定
+            if (userAgent.includes('android') && userAgent.includes('chrome/')) {
+                const chromeVersion = parseInt(userAgent.match(/chrome\/(\d+)/)?.[1] || '0');
+                if (chromeVersion < 90) return 'low';
+            }
+            
+            // メモリとCPUコア数による判定
+            if (deviceMemory >= 6 && hardwareConcurrency >= 6) {
+                return 'high';
+            } else if (deviceMemory >= 4 && hardwareConcurrency >= 4) {
+                return 'medium';
+            } else {
+                return 'low';
+            }
+        }
+        
+        // 最適なカメラ制約を取得
+        function getOptimalCameraConstraints(deviceId) {
+            const performance = estimateDevicePerformance();
+            log(`デバイス性能レベル: ${performance}`);
+            
+            let constraints = {
+                video: {
+                    deviceId: { exact: deviceId }
+                },
+                audio: false
+            };
+            
+            switch (performance) {
+                case 'high':
+                    constraints.video.width = { ideal: 1920, max: 2560 };
+                    constraints.video.height = { ideal: 1080, max: 1440 };
+                    constraints.video.frameRate = { ideal: 24, max: 30 };
+                    break;
+                    
+                case 'medium':
+                    constraints.video.width = { ideal: 1280, max: 1920 };
+                    constraints.video.height = { ideal: 720, max: 1080 };
+                    constraints.video.frameRate = { ideal: 20, max: 24 };
+                    break;
+                    
+                case 'low':
+                default:
+                    constraints.video.width = { ideal: 1280, max: 1920 };
+                    constraints.video.height = { ideal: 720, max: 1080 };
+                    constraints.video.frameRate = { ideal: 15, max: 20 };
+                    break;
+            }
+            
+            return constraints;
+        }
+        
+        // パフォーマンス監視を開始
+        function startPerformanceMonitoring() {
+            performanceCheckInterval = setInterval(() => {
+                const now = performance.now();
+                const timeDiff = now - lastFrameTime;
+                lastFrameTime = now;
+                
+                // フレームドロップを検出（33ms = 30fps, 66ms = 15fps）
+                if (timeDiff > 100) { // 100ms以上の遅延
+                    frameDropCount++;
+                    
+                    // 5回以上フレームドロップが発生したら画質を下げる
+                    if (frameDropCount >= 5) {
+                        degradeQuality();
+                        frameDropCount = 0;
+                    }
+                } else {
+                    // 良好な場合はカウントをリセット
+                    frameDropCount = Math.max(0, frameDropCount - 1);
+                }
+            }, 1000); // 1秒ごとにチェック
+        }
+        
+        // パフォーマンス監視を停止
+        function stopPerformanceMonitoring() {
+            if (performanceCheckInterval) {
+                clearInterval(performanceCheckInterval);
+                performanceCheckInterval = null;
+            }
+        }
+        
+        // 画質を段階的に下げる
+        function degradeQuality() {
+            if (!cameraStream) return;
+            
+            const videoTrack = cameraStream.getVideoTracks()[0];
+            if (!videoTrack) return;
+            
+            const settings = videoTrack.getSettings();
+            const currentWidth = settings.width || 1280;
+            const currentHeight = settings.height || 720;
+            const currentFrameRate = settings.frameRate || 15;
+            
+            let newConstraints = {};
+            
+            // 解像度を下げる
+            if (currentWidth > 1280) {
+                newConstraints.width = 1280;
+                newConstraints.height = 720;
+                log('画質を中画質に調整');
+            } else if (currentWidth > 960) {
+                newConstraints.width = 960;
+                newConstraints.height = 540;
+                log('画質を低画質に調整');
+            } else if (currentFrameRate > 15) {
+                newConstraints.frameRate = 15;
+                log('フレームレートを15fpsに調整');
+            }
+            
+            // 制約を適用
+            if (Object.keys(newConstraints).length > 0) {
+                videoTrack.applyConstraints(newConstraints).catch(error => {
+                    log(`画質調整エラー: ${error.message}`);
+                });
+            }
         }
         
         // 選択されたチームを監視
@@ -884,16 +1016,8 @@
                     cameraStream.getTracks().forEach(track => track.stop());
                 }
                 
-                // カメラの制約設定（パフォーマンス重視）
-                const constraints = {
-                    video: {
-                        deviceId: { exact: deviceId },
-                        width: { ideal: 1280, max: 1920 },
-                        height: { ideal: 720, max: 1080 },
-                        frameRate: { ideal: 15, max: 24 }
-                    },
-                    audio: false
-                };
+                // カメラの制約設定（適応的画質）
+                const constraints = getOptimalCameraConstraints(deviceId);
                 
                 // カメラストリーム取得
                 cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -924,6 +1048,9 @@
                         if (videoTrack) {
                             const settings = videoTrack.getSettings();
                             log(`カメラ設定: ${settings.width}x${settings.height} @${settings.frameRate}fps`);
+                            
+                            // パフォーマンス監視を開始
+                            startPerformanceMonitoring();
                         }
                         
                     }).catch(error => {
@@ -951,6 +1078,9 @@
                 cancelAnimationFrame(delayAnimationId);
                 delayAnimationId = null;
             }
+            
+            // パフォーマンス監視を停止
+            stopPerformanceMonitoring();
         }
         
 
@@ -991,29 +1121,52 @@
             startDelayedVideo();
         }
         
-        // 遅延映像を開始（パフォーマンス最適化版）
+        // 遅延映像を開始（適応的品質版）
         function startDelayedVideo() {
             const ctx = delayedCanvas.getContext('2d');
             delayedFrames = [];
             let frameCount = 0;
             
-            // キャンバスのサイズを一度だけ設定
-            delayedCanvas.width = 640;  // 小さい解像度で処理
-            delayedCanvas.height = 480;
+            // デバイス性能に応じた解像度設定
+            const performance = estimateDevicePerformance();
+            let canvasWidth, canvasHeight, processingWidth, processingHeight, frameSkip;
+            
+            switch (performance) {
+                case 'high':
+                    canvasWidth = 1280; canvasHeight = 720;
+                    processingWidth = 640; processingHeight = 360;
+                    frameSkip = 2;
+                    break;
+                case 'medium':
+                    canvasWidth = 960; canvasHeight = 540;
+                    processingWidth = 480; processingHeight = 270;
+                    frameSkip = 2;
+                    break;
+                case 'low':
+                default:
+                    canvasWidth = 640; canvasHeight = 480;
+                    processingWidth = 320; processingHeight = 240;
+                    frameSkip = 3;
+                    break;
+            }
+            
+            // キャンバスのサイズを設定
+            delayedCanvas.width = canvasWidth;
+            delayedCanvas.height = canvasHeight;
             
             function captureFrame() {
                 frameCount++;
                 
-                // フレームを間引く（3フレームに1回だけ処理）
-                if (frameCount % 3 === 0 && cameraVideo.readyState === cameraVideo.HAVE_ENOUGH_DATA) {
-                    // 低解像度でフレームをキャプチャ
+                // フレームを間引く（性能に応じて調整）
+                if (frameCount % frameSkip === 0 && cameraVideo.readyState === cameraVideo.HAVE_ENOUGH_DATA) {
+                    // 処理用解像度でフレームをキャプチャ
                     const tempCanvas = document.createElement('canvas');
                     const tempCtx = tempCanvas.getContext('2d');
-                    tempCanvas.width = 320;  // さらに小さい解像度
-                    tempCanvas.height = 240;
+                    tempCanvas.width = processingWidth;
+                    tempCanvas.height = processingHeight;
                     
-                    // 低解像度で描画
-                    tempCtx.drawImage(cameraVideo, 0, 0, 320, 240);
+                    // 処理用解像度で描画
+                    tempCtx.drawImage(cameraVideo, 0, 0, processingWidth, processingHeight);
                     
                     // フレームを配列に追加（タイムスタンプ付き）
                     delayedFrames.push({
@@ -1023,14 +1176,13 @@
                     
                     // 1秒より古いフレームを削除（メモリ効率化）
                     const oneSecondAgo = Date.now() - 1000;
-                    const oldLength = delayedFrames.length;
                     delayedFrames = delayedFrames.filter(frame => frame.timestamp > oneSecondAgo);
                     
                     // 1秒前のフレームがあれば表示
                     if (delayedFrames.length > 0) {
                         const oldestFrame = delayedFrames[0];
                         
-                        // 拡大して描画
+                        // 表示用解像度に拡大して描画
                         ctx.clearRect(0, 0, delayedCanvas.width, delayedCanvas.height);
                         ctx.drawImage(oldestFrame.canvas, 0, 0, delayedCanvas.width, delayedCanvas.height);
                     }
