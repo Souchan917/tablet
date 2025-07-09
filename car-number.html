@@ -153,7 +153,7 @@
 
         .emblem-text {
             color: #d4af37;
-            font-size: 1.2rem;
+            font-size: 1.8rem;
             font-weight: bold;
             letter-spacing: 4px;
             text-align: center;
@@ -171,7 +171,7 @@
         }
 
         .car-number {
-            font-size: 70vw;
+            font-size: 105vw;
             font-weight: bold;
             color: #d4af37;
             text-shadow: 
@@ -190,7 +190,7 @@
         }
 
         .car-suffix {
-            font-size: 4.5rem;
+            font-size: 6.75rem;
             font-weight: bold;
             color: #d4af37;
             margin-top: 0.5rem;
@@ -217,18 +217,18 @@
             width: 100%;
             height: 100%;
             background: 
-                radial-gradient(circle, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.98) 50%, rgba(0,0,0,1) 100%),
+                #000000,
                 repeating-linear-gradient(
                     0deg,
-                    transparent,
-                    transparent 3px,
+                    rgba(0,0,0,1),
+                    rgba(0,0,0,1) 3px,
                     rgba(255,255,255,0.03) 3px,
                     rgba(255,255,255,0.03) 6px
                 ),
                 repeating-linear-gradient(
                     90deg,
-                    transparent,
-                    transparent 3px,
+                    rgba(0,0,0,1),
+                    rgba(0,0,0,1) 3px,
                     rgba(255,255,255,0.03) 3px,
                     rgba(255,255,255,0.03) 6px
                 );
@@ -337,19 +337,19 @@
 
         /* 桁数に応じたフォントサイズ微調整 */
         .car-number.digits-1 {
-            font-size: 80vw;
+            font-size: 120vw;
         }
         
         .car-number.digits-2 {
-            font-size: 76vw;
+            font-size: 114vw;
         }
         
         .car-number.digits-3 {
-            font-size: 70vw;
+            font-size: 105vw;
         }
         
         .car-number.digits-4 {
-            font-size: 64vw;
+            font-size: 96vw;
         }
 
         /* レスポンシブデザイン */
@@ -360,7 +360,7 @@
             }
             
             .car-suffix {
-                font-size: 3rem;
+                font-size: 4.5rem;
             }
             
             .car-name {
@@ -368,7 +368,7 @@
             }
 
             .emblem-text {
-                font-size: 1rem;
+                font-size: 1.5rem;
                 letter-spacing: 2px;
             }
 
@@ -384,11 +384,11 @@
             }
             
             .car-suffix {
-                font-size: 2.5rem;
+                font-size: 3.75rem;
             }
             
             .emblem-text {
-                font-size: 0.8rem;
+                font-size: 1.2rem;
                 letter-spacing: 1px;
             }
 
@@ -404,19 +404,19 @@
         /* 横向きの場合の調整 */
         @media (orientation: landscape) {
             .car-number.digits-1 {
-                font-size: 60vh;
+                font-size: 90vh;
             }
             
             .car-number.digits-2 {
-                font-size: 56vh;
+                font-size: 84vh;
             }
             
             .car-number.digits-3 {
-                font-size: 50vh;
+                font-size: 75vh;
             }
             
             .car-number.digits-4 {
-                font-size: 44vh;
+                font-size: 66vh;
             }
         }
 
@@ -430,7 +430,7 @@
         <div class="train-car-number-display">
             <div class="train-car-frame">
                 <div class="noise-overlay" id="noiseOverlay">
-                    <div class="noise-text">ACCESS DENIED</div>
+                    <div class="noise-text">電源装置が作動していません</div>
         </div>
         
                 <div class="train-emblem">

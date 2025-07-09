@@ -227,18 +227,18 @@
             width: 100%;
             height: 100%;
             background: 
-                radial-gradient(circle, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.98) 50%, rgba(0,0,0,1) 100%),
+                #000000,
                 repeating-linear-gradient(
                     0deg,
-                    transparent,
-                    transparent 3px,
+                    rgba(0,0,0,1),
+                    rgba(0,0,0,1) 3px,
                     rgba(255,255,255,0.03) 3px,
                     rgba(255,255,255,0.03) 6px
                 ),
                 repeating-linear-gradient(
                     90deg,
-                    transparent,
-                    transparent 3px,
+                    rgba(0,0,0,1),
+                    rgba(0,0,0,1) 3px,
                     rgba(255,255,255,0.03) 3px,
                     rgba(255,255,255,0.03) 6px
                 );
@@ -308,6 +308,30 @@
         @keyframes gentle-scan-lines {
             0% { transform: translateY(-100%); }
             100% { transform: translateY(100vh); }
+        }
+        
+        .noise-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ff4444;
+            font-size: 4rem;
+            font-weight: bold;
+            text-shadow: 
+                0 0 10px #ff4444,
+                0 0 20px #ff4444;
+            animation: gentle-glitch-text 1s linear infinite;
+            z-index: 11;
+            text-align: center;
+        }
+
+        @keyframes gentle-glitch-text {
+            0% { transform: translate(-50%, -50%) skew(0deg); }
+            25% { transform: translate(-50.5%, -49.5%) skew(0.5deg); }
+            50% { transform: translate(-49.5%, -50.5%) skew(-0.5deg); }
+            75% { transform: translate(-50%, -50%) skew(0deg); }
+            100% { transform: translate(-50%, -50%) skew(0deg); }
         }
         
         /* チーム情報表示 */
@@ -392,6 +416,19 @@
             -moz-user-select: none;
             -ms-user-select: none;
             user-select: none;
+        }
+        
+        /* レスポンシブデザイン */
+        @media (max-width: 768px) {
+            .noise-text {
+                font-size: 2rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .noise-text {
+                font-size: 1.5rem;
+            }
         }
         
         /* エラーオーバーレイ */
@@ -496,7 +533,9 @@
     <div class="camera-container">
         <video id="cameraVideo" autoplay muted playsinline></video>
         <canvas id="delayedCanvas"></canvas>
-        <div class="noise-overlay" id="noiseOverlay"></div>
+        <div class="noise-overlay" id="noiseOverlay">
+            <div class="noise-text">電源装置が作動していません</div>
+        </div>
     </div>
     
     <!-- チーム情報表示 -->
