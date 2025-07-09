@@ -295,6 +295,30 @@
                 startHeartbeat();
             }
         });
+
+        // 自動全画面機能
+        function enterFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error('自動全画面エラー:', err);
+                });
+            }
+        }
+
+        // ページ読み込み時に自動全画面
+        window.addEventListener('load', function() {
+            // 少し遅延を入れて実行
+            setTimeout(enterFullscreen, 500);
+        });
+
+        // ユーザーインタラクション後にも試行
+        document.addEventListener('click', function() {
+            enterFullscreen();
+        }, { once: true });
+
+        document.addEventListener('keydown', function() {
+            enterFullscreen();
+        }, { once: true });
     </script>
 </body>
 </html> 
