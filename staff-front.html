@@ -827,6 +827,27 @@
             }
         });
 
+        // Firebaseからのリアルタイム同期
+        function watchFirebaseProgress() {
+            // 各チームの進捗を監視
+            for (let teamId = 1; teamId <= totalTeams; teamId++) {
+                db.collection('tabletTeamsFront').doc(teamId.toString()).onSnapshot((doc) => {
+                    if (doc.exists) {
+                        const data = doc.data();
+                        if (data.progress && Array.isArray(data.progress)) {
+                            // Firebaseから更新されたデータをローカルに反映
+                            teamProgress[teamId] = data.progress;
+                            saveProgress(); // ローカルストレージも更新
+                            updateAllButtons();
+                            updateStats();
+                        }
+                    }
+                }, (error) => {
+                    console.error(`チーム${teamId}の進捗監視エラー:`, error);
+                });
+            }
+        }
+
         // 初期化
         document.addEventListener('DOMContentLoaded', async function() {
             initializeProgress();
@@ -840,6 +861,9 @@
             setTimeout(async () => {
                 await loadProgressFromFirebase();
                 await loadSelectedTeamFromFirebase();
+                
+                // リアルタイム同期開始
+                watchFirebaseProgress();
                 
                 // カメラタブレット制御情報を初期化
                 await updateAllCameraTabletControls();

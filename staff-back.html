@@ -505,7 +505,7 @@
 
         // 初期化
         function initializeProgress() {
-            const savedProgress = localStorage.getItem('tabletTeamProgressBack');
+            const savedProgress = localStorage.getItem('tabletTeamProgressFront');
             if (savedProgress) {
                 teamProgress = JSON.parse(savedProgress);
             } else {
@@ -519,13 +519,13 @@
 
         // 進捗をローカルストレージに保存
         function saveProgress() {
-            localStorage.setItem('tabletTeamProgressBack', JSON.stringify(teamProgress));
+            localStorage.setItem('tabletTeamProgressFront', JSON.stringify(teamProgress));
         }
 
         // Firebaseに進捗を保存
         async function saveProgressToFirebase(teamId, progress) {
             try {
-                await db.collection('tabletTeamsBack').doc(teamId.toString()).set({
+                await db.collection('tabletTeamsFront').doc(teamId.toString()).set({
                     progress: progress,
                     lastUpdated: new Date()
                 }, { merge: true });
@@ -538,7 +538,7 @@
         async function loadProgressFromFirebase() {
             try {
                 for (let teamId = 1; teamId <= totalTeams; teamId++) {
-                    const teamDoc = await db.collection('tabletTeamsBack').doc(teamId.toString()).get();
+                    const teamDoc = await db.collection('tabletTeamsFront').doc(teamId.toString()).get();
                     if (teamDoc.exists) {
                         const data = teamDoc.data();
                         if (data.progress && Array.isArray(data.progress)) {
@@ -563,6 +563,13 @@
                     progress: teamProgress[teamId],
                     lastUpdated: new Date()
                 });
+                
+                // スタッフ前と同じように進捗も更新
+                await db.collection('tabletTeamsFront').doc(teamId.toString()).set({
+                    progress: teamProgress[teamId],
+                    lastUpdated: new Date()
+                }, { merge: true });
+                
                 currentSelectedTeamId = teamId;
                 updateSelectedTeamVisual();
                 console.log(`チーム${teamId}が選択されました（ステップ${currentStep + 1}）`);
@@ -797,6 +804,27 @@
             }
         });
 
+        // Firebaseからのリアルタイム同期
+        function watchFirebaseProgress() {
+            // 各チームの進捗を監視
+            for (let teamId = 1; teamId <= totalTeams; teamId++) {
+                db.collection('tabletTeamsFront').doc(teamId.toString()).onSnapshot((doc) => {
+                    if (doc.exists) {
+                        const data = doc.data();
+                        if (data.progress && Array.isArray(data.progress)) {
+                            // Firebaseから更新されたデータをローカルに反映
+                            teamProgress[teamId] = data.progress;
+                            saveProgress(); // ローカルストレージも更新
+                            updateAllButtons();
+                            updateStats();
+                        }
+                    }
+                }, (error) => {
+                    console.error(`チーム${teamId}の進捗監視エラー:`, error);
+                });
+            }
+        }
+
         // 初期化
         document.addEventListener('DOMContentLoaded', async function() {
             initializeProgress();
@@ -810,6 +838,9 @@
             setTimeout(async () => {
                 await loadProgressFromFirebase();
                 await loadSelectedTeamFromFirebase();
+                
+                // リアルタイム同期開始
+                watchFirebaseProgress();
             }, 1000);
         });
 
