@@ -190,6 +190,57 @@
             border-radius: 8px;
         }
 
+        /* 接続状況表示 */
+        .connection-status {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+            padding: 10px;
+            background: #222;
+            border-radius: 8px;
+            gap: 10px;
+        }
+
+        .connection-item {
+            flex: 1;
+            text-align: center;
+            padding: 8px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .connection-item.connected {
+            background: #2E7D32;
+            color: white;
+        }
+
+        .connection-item.disconnected {
+            background: #C62828;
+            color: white;
+        }
+
+        .connection-item.checking {
+            background: #F57C00;
+            color: white;
+        }
+
+        .connection-name {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+
+        .connection-status-text {
+            font-size: 10px;
+            opacity: 0.9;
+        }
+
+        .connection-time {
+            font-size: 9px;
+            opacity: 0.7;
+            margin-top: 2px;
+        }
+
         .stat-item {
             text-align: center;
             flex: 1;
@@ -348,6 +399,29 @@
                 <div class="stat-label">完了チーム数</div>
             </div>
         </div>
+
+        <div class="connection-status">
+            <div class="connection-item checking" id="monitorFrontConnection">
+                <div class="connection-name">モニター前</div>
+                <div class="connection-status-text">確認中...</div>
+                <div class="connection-time" id="monitorFrontTime">-</div>
+            </div>
+            <div class="connection-item checking" id="monitorBackConnection">
+                <div class="connection-name">モニター後</div>
+                <div class="connection-status-text">確認中...</div>
+                <div class="connection-time" id="monitorBackTime">-</div>
+            </div>
+            <div class="connection-item checking" id="carNumberConnection">
+                <div class="connection-name">車両番号</div>
+                <div class="connection-status-text">確認中...</div>
+                <div class="connection-time" id="carNumberTime">-</div>
+            </div>
+            <div class="connection-item checking" id="cameraTabletConnection">
+                <div class="connection-name">カメラタブレット</div>
+                <div class="connection-status-text">確認中...</div>
+                <div class="connection-time" id="cameraTabletTime">-</div>
+            </div>
+        </div>
     </div>
 
     <!-- カメラ画面に遷移するボタン -->
@@ -368,6 +442,69 @@
         const totalSteps = 8;
         const totalTeams = 10;
         let currentSelectedTeamId = null;
+        let connectionCheckInterval = null;
+
+        // 接続状況監視
+        function startConnectionMonitoring() {
+            // 初回チェック
+            checkDeviceConnections();
+            
+            // 5秒ごとに接続状況をチェック
+            connectionCheckInterval = setInterval(checkDeviceConnections, 5000);
+        }
+
+        // 接続状況確認
+        async function checkDeviceConnections() {
+            const devices = [
+                { id: 'monitor-front', name: 'モニター前' },
+                { id: 'monitor-back', name: 'モニター後' },
+                { id: 'car-number', name: '車両番号' },
+                { id: 'camera-tablet-self', name: 'カメラタブレット' }
+            ];
+
+            for (const device of devices) {
+                try {
+                    const deviceDoc = await db.collection('device-connections').doc(device.id).get();
+                    const element = document.getElementById(`${device.id.replace('-', '')}Connection`);
+                    const timeElement = document.getElementById(`${device.id.replace('-', '')}Time`);
+                    
+                    if (deviceDoc.exists) {
+                        const data = deviceDoc.data();
+                        const lastSeen = data.lastSeen.toDate();
+                        const now = new Date();
+                        const timeDiff = now - lastSeen;
+                        
+                        // 10秒以上更新されていない場合は切断とみなす
+                        if (timeDiff > 10000 || !data.isConnected) {
+                            element.className = 'connection-item disconnected';
+                            element.querySelector('.connection-status-text').textContent = '切断';
+                            timeElement.textContent = `${Math.floor(timeDiff / 1000)}秒前`;
+                        } else {
+                            element.className = 'connection-item connected';
+                            element.querySelector('.connection-status-text').textContent = '接続中';
+                            timeElement.textContent = `${Math.floor(timeDiff / 1000)}秒前`;
+                        }
+                    } else {
+                        element.className = 'connection-item disconnected';
+                        element.querySelector('.connection-status-text').textContent = '未接続';
+                        timeElement.textContent = '-';
+                    }
+                } catch (error) {
+                    console.error(`${device.name}の接続状況確認エラー:`, error);
+                    const element = document.getElementById(`${device.id.replace('-', '')}Connection`);
+                    element.className = 'connection-item disconnected';
+                    element.querySelector('.connection-status-text').textContent = 'エラー';
+                }
+            }
+        }
+
+        // 接続監視停止
+        function stopConnectionMonitoring() {
+            if (connectionCheckInterval) {
+                clearInterval(connectionCheckInterval);
+                connectionCheckInterval = null;
+            }
+        }
 
         // 初期化
         function initializeProgress() {
@@ -683,11 +820,19 @@
             cameraButton.classList.add('show');
             cameraButton.textContent = '📷 カメラタブレット画面';
             
+            // 接続監視開始
+            startConnectionMonitoring();
+            
             // Firebase初期化後に少し待機
             setTimeout(async () => {
                 await loadProgressFromFirebase();
                 await loadSelectedTeamFromFirebase();
             }, 1000);
+        });
+
+        // ページ離脱時のクリーンアップ
+        window.addEventListener('beforeunload', function() {
+            stopConnectionMonitoring();
         });
     </script>
 </body>

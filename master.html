@@ -40,6 +40,37 @@
             border-color: rgba(255, 255, 255, 0.5);
         }
 
+        .fullscreen-btn {
+            position: fixed;
+            top: 20px;
+            left: 160px;
+            background: rgba(0, 102, 204, 0.8);
+            color: white;
+            border: 2px solid rgba(0, 102, 204, 0.3);
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .fullscreen-btn:hover {
+            background: rgba(0, 102, 204, 0.9);
+            border-color: rgba(0, 102, 204, 0.5);
+            transform: scale(1.05);
+        }
+
+        .fullscreen-btn.exit {
+            background: rgba(204, 102, 0, 0.8);
+            border-color: rgba(204, 102, 0, 0.3);
+        }
+
+        .fullscreen-btn.exit:hover {
+            background: rgba(204, 102, 0, 0.9);
+            border-color: rgba(204, 102, 0, 0.5);
+        }
+
         .container {
             max-width: 1400px;
             margin: 0 auto;
@@ -404,7 +435,8 @@
     </style>
 </head>
 <body>
-    <button class="back-btn" onclick="goBack()">← 戻る</button>
+    <button class="back-btn" onclick="window.location.href='index.html'">← 戻る</button>
+    <button class="fullscreen-btn" id="fullscreenBtn" onclick="toggleFullscreen()">⛶ 全画面</button>
     
     <div class="container">
         <h1>MASTER 制御画面</h1>
@@ -709,6 +741,41 @@
                 statusElement.classList.remove('active');
             }
         }
+
+        // 全画面制御
+        function toggleFullscreen() {
+            const btn = document.getElementById('fullscreenBtn');
+            
+            if (!document.fullscreenElement) {
+                // 全画面にする
+                document.documentElement.requestFullscreen().then(() => {
+                    btn.textContent = '⛶ 全画面終了';
+                    btn.classList.add('exit');
+                }).catch(err => {
+                    console.error('全画面エラー:', err);
+                });
+            } else {
+                // 全画面を解除
+                document.exitFullscreen().then(() => {
+                    btn.textContent = '⛶ 全画面';
+                    btn.classList.remove('exit');
+                }).catch(err => {
+                    console.error('全画面終了エラー:', err);
+                });
+            }
+        }
+
+        // 全画面状態変更の監視
+        document.addEventListener('fullscreenchange', function() {
+            const btn = document.getElementById('fullscreenBtn');
+            if (document.fullscreenElement) {
+                btn.textContent = '⛶ 全画面終了';
+                btn.classList.add('exit');
+            } else {
+                btn.textContent = '⛶ 全画面';
+                btn.classList.remove('exit');
+            }
+        });
 
         // Firebase監視関数
         function watchCarNumberChanges() {

@@ -39,6 +39,34 @@
             background: #555;
         }
 
+        .fullscreen-btn {
+            position: fixed;
+            top: 10px;
+            left: 120px;
+            background: #0066CC;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .fullscreen-btn:hover {
+            background: #0052A3;
+            transform: scale(1.05);
+        }
+
+        .fullscreen-btn.exit {
+            background: #CC6600;
+        }
+
+        .fullscreen-btn.exit:hover {
+            background: #A3520D;
+        }
+
         .container {
             flex: 1;
             padding: 60px 20px 10px;
@@ -161,6 +189,57 @@
             padding: 10px;
             background: #333;
             border-radius: 8px;
+        }
+
+        /* 接続状況表示 */
+        .connection-status {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+            padding: 10px;
+            background: #222;
+            border-radius: 8px;
+            gap: 10px;
+        }
+
+        .connection-item {
+            flex: 1;
+            text-align: center;
+            padding: 8px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .connection-item.connected {
+            background: #2E7D32;
+            color: white;
+        }
+
+        .connection-item.disconnected {
+            background: #C62828;
+            color: white;
+        }
+
+        .connection-item.checking {
+            background: #F57C00;
+            color: white;
+        }
+
+        .connection-name {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+
+        .connection-status-text {
+            font-size: 10px;
+            opacity: 0.9;
+        }
+
+        .connection-time {
+            font-size: 9px;
+            opacity: 0.7;
+            margin-top: 2px;
         }
 
         .stat-item {
@@ -298,7 +377,8 @@
     </style>
 </head>
 <body>
-    <button class="back-btn" onclick="goBack()">← 戻る</button>
+    <button class="back-btn" onclick="window.location.href='index.html'">← 戻る</button>
+    <button class="fullscreen-btn" id="fullscreenBtn" onclick="toggleFullscreen()">⛶ 全画面</button>
     
     <div class="container">
         <h1>スタッフ前 進捗管理</h1>
@@ -321,6 +401,29 @@
                 <div class="stat-label">完了チーム数</div>
             </div>
         </div>
+
+        <div class="connection-status">
+            <div class="connection-item checking" id="monitorFrontConnection">
+                <div class="connection-name">モニター前</div>
+                <div class="connection-status-text">確認中...</div>
+                <div class="connection-time" id="monitorFrontTime">-</div>
+            </div>
+            <div class="connection-item checking" id="monitorBackConnection">
+                <div class="connection-name">モニター後</div>
+                <div class="connection-status-text">確認中...</div>
+                <div class="connection-time" id="monitorBackTime">-</div>
+            </div>
+            <div class="connection-item checking" id="carNumberConnection">
+                <div class="connection-name">車両番号</div>
+                <div class="connection-status-text">確認中...</div>
+                <div class="connection-time" id="carNumberTime">-</div>
+            </div>
+            <div class="connection-item checking" id="cameraTabletConnection">
+                <div class="connection-name">カメラタブレット</div>
+                <div class="connection-status-text">確認中...</div>
+                <div class="connection-time" id="cameraTabletTime">-</div>
+            </div>
+        </div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
@@ -336,6 +439,69 @@
         const totalSteps = 8;
         const totalTeams = 10;
         let currentSelectedTeamId = null;
+        let connectionCheckInterval = null;
+
+        // 接続状況監視
+        function startConnectionMonitoring() {
+            // 初回チェック
+            checkDeviceConnections();
+            
+            // 5秒ごとに接続状況をチェック
+            connectionCheckInterval = setInterval(checkDeviceConnections, 5000);
+        }
+
+        // 接続状況確認
+        async function checkDeviceConnections() {
+            const devices = [
+                { id: 'monitor-front', name: 'モニター前' },
+                { id: 'monitor-back', name: 'モニター後' },
+                { id: 'car-number', name: '車両番号' },
+                { id: 'camera-tablet-self', name: 'カメラタブレット' }
+            ];
+
+            for (const device of devices) {
+                try {
+                    const deviceDoc = await db.collection('device-connections').doc(device.id).get();
+                    const element = document.getElementById(`${device.id.replace('-', '')}Connection`);
+                    const timeElement = document.getElementById(`${device.id.replace('-', '')}Time`);
+                    
+                    if (deviceDoc.exists) {
+                        const data = deviceDoc.data();
+                        const lastSeen = data.lastSeen.toDate();
+                        const now = new Date();
+                        const timeDiff = now - lastSeen;
+                        
+                        // 10秒以上更新されていない場合は切断とみなす
+                        if (timeDiff > 10000 || !data.isConnected) {
+                            element.className = 'connection-item disconnected';
+                            element.querySelector('.connection-status-text').textContent = '切断';
+                            timeElement.textContent = `${Math.floor(timeDiff / 1000)}秒前`;
+                        } else {
+                            element.className = 'connection-item connected';
+                            element.querySelector('.connection-status-text').textContent = '接続中';
+                            timeElement.textContent = `${Math.floor(timeDiff / 1000)}秒前`;
+                        }
+                    } else {
+                        element.className = 'connection-item disconnected';
+                        element.querySelector('.connection-status-text').textContent = '未接続';
+                        timeElement.textContent = '-';
+                    }
+                } catch (error) {
+                    console.error(`${device.name}の接続状況確認エラー:`, error);
+                    const element = document.getElementById(`${device.id.replace('-', '')}Connection`);
+                    element.className = 'connection-item disconnected';
+                    element.querySelector('.connection-status-text').textContent = 'エラー';
+                }
+            }
+        }
+
+        // 接続監視停止
+        function stopConnectionMonitoring() {
+            if (connectionCheckInterval) {
+                clearInterval(connectionCheckInterval);
+                connectionCheckInterval = null;
+            }
+        }
 
         // 初期化
         function initializeProgress() {
@@ -626,11 +792,49 @@
             window.location.href = 'index.html';
         }
 
+        // 全画面制御
+        function toggleFullscreen() {
+            const btn = document.getElementById('fullscreenBtn');
+            
+            if (!document.fullscreenElement) {
+                // 全画面にする
+                document.documentElement.requestFullscreen().then(() => {
+                    btn.textContent = '⛶ 全画面終了';
+                    btn.classList.add('exit');
+                }).catch(err => {
+                    console.error('全画面エラー:', err);
+                });
+            } else {
+                // 全画面を解除
+                document.exitFullscreen().then(() => {
+                    btn.textContent = '⛶ 全画面';
+                    btn.classList.remove('exit');
+                }).catch(err => {
+                    console.error('全画面終了エラー:', err);
+                });
+            }
+        }
+
+        // 全画面状態変更の監視
+        document.addEventListener('fullscreenchange', function() {
+            const btn = document.getElementById('fullscreenBtn');
+            if (document.fullscreenElement) {
+                btn.textContent = '⛶ 全画面終了';
+                btn.classList.add('exit');
+            } else {
+                btn.textContent = '⛶ 全画面';
+                btn.classList.remove('exit');
+            }
+        });
+
         // 初期化
         document.addEventListener('DOMContentLoaded', async function() {
             initializeProgress();
             createTeamRows();
             updateStats();
+            
+            // 接続監視開始
+            startConnectionMonitoring();
             
             // Firebase初期化後に少し待機
             setTimeout(async () => {
@@ -640,6 +844,11 @@
                 // カメラタブレット制御情報を初期化
                 await updateAllCameraTabletControls();
             }, 1000);
+        });
+
+        // ページ離脱時のクリーンアップ
+        window.addEventListener('beforeunload', function() {
+            stopConnectionMonitoring();
         });
     </script>
 </body>

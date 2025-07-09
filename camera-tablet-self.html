@@ -547,6 +547,48 @@
         let tapTimer = null;
         let teamProgressUnsubscribe = null;
         let selectedTeamUnsubscribe = null;
+        let heartbeatInterval = null;
+        
+        // 接続監視のハートビート送信
+        function sendHeartbeat() {
+            try {
+                db.collection('device-connections').doc('camera-tablet-self').set({
+                    type: 'camera-tablet-self',
+                    lastSeen: new Date(),
+                    isConnected: true
+                }, { merge: true });
+            } catch (error) {
+                console.error('ハートビート送信エラー:', error);
+            }
+        }
+
+        // ハートビート開始
+        function startHeartbeat() {
+            // 初回送信
+            sendHeartbeat();
+            
+            // 3秒ごとに送信
+            heartbeatInterval = setInterval(sendHeartbeat, 3000);
+        }
+
+        // ハートビート停止
+        function stopHeartbeat() {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
+            }
+            
+            // 切断状態を送信
+            try {
+                db.collection('device-connections').doc('camera-tablet-self').set({
+                    type: 'camera-tablet-self',
+                    lastSeen: new Date(),
+                    isConnected: false
+                }, { merge: true });
+            } catch (error) {
+                console.error('切断状態送信エラー:', error);
+            }
+        }
         
         // ログ機能
         function log(message) {
@@ -558,6 +600,9 @@
             log('アプリ初期化開始');
             setupBackButton();
             searchCameras();
+            
+            // 接続監視開始
+            startHeartbeat();
             
             // 車両番号と同じシステムで監視開始
             watchSelectedTeam();
@@ -610,6 +655,7 @@
             if (teamProgressUnsubscribe) {
                 teamProgressUnsubscribe();
             }
+            stopHeartbeat();
             window.location.href = 'index.html';
         }
         
@@ -1027,6 +1073,30 @@
             loadingOverlay.classList.add('hidden');
         }
         
+        // 自動全画面機能
+        function enterFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error('自動全画面エラー:', err);
+                });
+            }
+        }
+
+        // ページ読み込み時に自動全画面
+        window.addEventListener('load', function() {
+            // 少し遅延を入れて実行
+            setTimeout(enterFullscreen, 500);
+        });
+
+        // ユーザーインタラクション後にも試行
+        document.addEventListener('click', function() {
+            enterFullscreen();
+        }, { once: true });
+
+        document.addEventListener('keydown', function() {
+            enterFullscreen();
+        }, { once: true });
+        
         // ページ終了時のクリーンアップ
         window.addEventListener('beforeunload', function() {
             stopCamera();
@@ -1035,6 +1105,16 @@
             }
             if (teamProgressUnsubscribe) {
                 teamProgressUnsubscribe();
+            }
+            stopHeartbeat();
+        });
+
+        // ページ非表示時のクリーンアップ
+        window.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                stopHeartbeat();
+            } else {
+                startHeartbeat();
             }
         });
     </script>

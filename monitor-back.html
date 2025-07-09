@@ -37,6 +37,48 @@
 
         let selectedTeamData = null;
         let unsubscribeSelectedTeam = null;
+        let heartbeatInterval = null;
+
+        // 接続監視のハートビート送信
+        function sendHeartbeat() {
+            try {
+                db.collection('device-connections').doc('monitor-back').set({
+                    type: 'monitor-back',
+                    lastSeen: new Date(),
+                    isConnected: true
+                }, { merge: true });
+            } catch (error) {
+                console.error('ハートビート送信エラー:', error);
+            }
+        }
+
+        // ハートビート開始
+        function startHeartbeat() {
+            // 初回送信
+            sendHeartbeat();
+            
+            // 3秒ごとに送信
+            heartbeatInterval = setInterval(sendHeartbeat, 3000);
+        }
+
+        // ハートビート停止
+        function stopHeartbeat() {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
+            }
+            
+            // 切断状態を送信
+            try {
+                db.collection('device-connections').doc('monitor-back').set({
+                    type: 'monitor-back',
+                    lastSeen: new Date(),
+                    isConnected: false
+                }, { merge: true });
+            } catch (error) {
+                console.error('切断状態送信エラー:', error);
+            }
+        }
 
         // 画像を更新
         function updateImage() {
@@ -119,6 +161,9 @@
 
         // 初期化
         document.addEventListener('DOMContentLoaded', function() {
+            // 接続監視開始
+            startHeartbeat();
+            
             // Firebase接続後に選択チームを監視
             setTimeout(() => {
                 watchSelectedTeam();
@@ -136,6 +181,16 @@
         window.addEventListener('beforeunload', function() {
             if (unsubscribeSelectedTeam) {
                 unsubscribeSelectedTeam();
+            }
+            stopHeartbeat();
+        });
+
+        // ページ非表示時のクリーンアップ
+        window.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                stopHeartbeat();
+            } else {
+                startHeartbeat();
             }
         });
     </script>
