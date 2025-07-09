@@ -578,7 +578,7 @@
             });
         }
 
-        // カウントダウン制御の監視
+        // カウントダウン制御の監視（マスター管理のため監視のみ）
         function watchCountdownControl() {
             unsubscribeCountdown = db.collection('global').doc('carNumberCountdown').onSnapshot((doc) => {
                 if (doc.exists) {
@@ -586,33 +586,8 @@
                     const isActive = data.active || false;
                     const interval = data.interval || 1000;
                     
-                    // 既存のカウントダウンを停止
-                    if (countdownInterval) {
-                        clearInterval(countdownInterval);
-                        countdownInterval = null;
-                    }
-                    
-                    if (isActive) {
-                        // カウントダウン開始（ローカル処理）
-                        console.log('カウントダウン開始 - 間隔:', interval, 'ミリ秒');
-                        countdownInterval = setInterval(() => {
-                            if (currentCarNumber > 0) {
-                                currentCarNumber--;
-                                updateDisplay(currentCarNumber);
-                            } else {
-                                // 0になったらカウントダウン停止
-                                clearInterval(countdownInterval);
-                                countdownInterval = null;
-                                // マスターに停止を通知
-                                db.collection('global').doc('carNumberCountdown').set({
-                                    active: false,
-                                    interval: interval
-                                }).catch(error => {
-                                    console.error('カウントダウン停止通知エラー:', error);
-                                });
-                            }
-                        }, interval);
-                    }
+                    // カウントダウンはマスターで実行されるため、ここでは状態監視のみ
+                    console.log('カウントダウン状態:', isActive ? '実行中' : '停止中', '- 間隔:', interval, 'ミリ秒');
                 }
             }, (error) => {
                 console.error('カウントダウン制御監視エラー:', error);

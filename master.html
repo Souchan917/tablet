@@ -521,6 +521,7 @@
         let currentCarNumber = 3600;
         let countdownActive = false;
         let secondDuration = 1.0; // 1秒の長さ（秒）
+        let countdownInterval = null; // マスターでのカウントダウンインターバル
 
         // 進捗データ
         let teamProgress = {};
@@ -800,10 +801,63 @@
             unsubscribeCountdown = db.collection('global').doc('carNumberCountdown').onSnapshot((doc) => {
                 if (doc.exists) {
                     const data = doc.data();
-                    countdownActive = data.active || false;
+                    const newActive = data.active || false;
                     const interval = data.interval || 1000;
                     secondDuration = interval / 1000;
                     document.getElementById('secondDurationInput').value = secondDuration;
+                    
+                    // カウントダウン状態が変わった場合
+                    if (newActive !== countdownActive) {
+                        countdownActive = newActive;
+                        
+                        // 既存のカウントダウンを停止
+                        if (countdownInterval) {
+                            clearInterval(countdownInterval);
+                            countdownInterval = null;
+                        }
+                        
+                        if (countdownActive) {
+                            // カウントダウン開始（マスターで実行）
+                            console.log('マスターでカウントダウン開始 - 間隔:', interval, 'ミリ秒');
+                            countdownInterval = setInterval(async () => {
+                                if (currentCarNumber > 0) {
+                                    currentCarNumber--;
+                                    // マスターの表示を更新
+                                    updateCarNumberDisplay(currentCarNumber);
+                                    
+                                    // Firebaseに現在の値を更新（他の画面に同期）
+                                    try {
+                                        await db.collection('global').doc('carNumberManual').set({
+                                            value: currentCarNumber,
+                                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                                        });
+                                    } catch (error) {
+                                        console.error('車両番号更新エラー:', error);
+                                    }
+                                } else {
+                                    // 0になったらカウントダウン停止
+                                    clearInterval(countdownInterval);
+                                    countdownInterval = null;
+                                    countdownActive = false;
+                                    
+                                    // カウントダウン停止をFirebaseに通知
+                                    try {
+                                        await db.collection('global').doc('carNumberCountdown').set({
+                                            active: false,
+                                            interval: interval,
+                                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                                        });
+                                        console.log('カウントダウンが0に到達したため自動停止');
+                                    } catch (error) {
+                                        console.error('カウントダウン停止通知エラー:', error);
+                                    }
+                                }
+                            }, interval);
+                        } else {
+                            console.log('マスターでカウントダウン停止');
+                        }
+                    }
+                    
                     updateCountdownStatusDisplay(countdownActive, interval);
                 }
             });
@@ -833,6 +887,13 @@
 
         // 戻るボタン
         function goBack() {
+            // カウントダウンインターバルを停止
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+            
+            // Firebase監視を停止
             if (unsubscribeCarNumber) {
                 unsubscribeCarNumber();
             }
@@ -842,6 +903,7 @@
             if (unsubscribeTeamProgress) {
                 unsubscribeTeamProgress();
             }
+            
             window.location.href = 'index.html';
         }
 
