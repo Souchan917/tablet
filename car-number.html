@@ -309,16 +309,7 @@
             100% { transform: translate(-50%, -50%) skew(0deg); }
         }
 
-        /* 減算アニメーション */
-        .car-number.countdown {
-            animation: countdown-pulse 1s ease-in-out;
-        }
 
-        @keyframes countdown-pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.02); color: #ff6b6b; }
-            100% { transform: scale(1); }
-        }
 
         /* 桁数に応じたフォントサイズ微調整 */
         .car-number.digits-1 {
@@ -533,12 +524,6 @@
             const display = document.getElementById('carNumber');
             display.textContent = number;
             updateDigitClass(number);
-            
-            // 減算アニメーション
-            display.classList.add('countdown');
-            setTimeout(() => {
-                display.classList.remove('countdown');
-            }, 1000);
         }
 
         // ノイズ表示を更新

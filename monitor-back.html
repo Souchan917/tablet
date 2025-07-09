@@ -326,29 +326,7 @@
 
 
         
-        /* カウントダウンアニメーション */
-        .monitor-car-number.countdown {
-            animation: countdownPulse 1s ease-in-out;
-        }
-        
-        @keyframes countdownPulse {
-            0% {
-                transform: scale(1);
-                color: #d4af37;
-            }
-            50% {
-                transform: scale(1.05);
-                color: #ff6b6b;
-                text-shadow: 
-                    0 2px 5px rgba(0, 0, 0, 0.5),
-                    0 0 10px rgba(255, 107, 107, 0.5),
-                    0 0 20px rgba(255, 107, 107, 0.3);
-            }
-            100% {
-                transform: scale(1);
-                color: #d4af37;
-            }
-        }
+
         
         /* ローディングテキスト */
         #loadingText {
@@ -884,12 +862,6 @@
             // 桁数に応じたクラス設定（表示する数値で判定）
             const digitCount = displayNumber.toString().length;
             monitorCarNumber.className = `monitor-car-number digits-${digitCount}`;
-            
-            // カウントダウンアニメーション
-            monitorCarNumber.classList.add('countdown');
-            setTimeout(() => {
-                monitorCarNumber.classList.remove('countdown');
-            }, 1000);
         }
         
         // ノイズ表示を更新
