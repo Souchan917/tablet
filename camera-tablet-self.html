@@ -198,25 +198,33 @@
             align-items: center;
         }
         
-        /* カメラ映像要素 */
+        /* カメラ映像要素（パフォーマンス最適化） */
         #cameraVideo {
             width: 100%;
             height: 100%;
             object-fit: cover;
             background-color: #000;
-            transform: translateZ(0);
+            transform: translate3d(0, 0, 0);
             will-change: transform;
             backface-visibility: hidden;
-            transition: all 0.3s ease;
+            -webkit-transform: translate3d(0, 0, 0);
+            -webkit-backface-visibility: hidden;
+            image-rendering: auto;
+            image-rendering: crisp-edges;
+            image-rendering: pixelated;
         }
         
-        /* 遅延映像用のキャンバス */
+        /* 遅延映像用のキャンバス（パフォーマンス最適化） */
         #delayedCanvas {
             width: 100%;
             height: 100%;
             object-fit: cover;
             background-color: #000;
             display: none;
+            transform: translate3d(0, 0, 0);
+            will-change: transform;
+            -webkit-transform: translate3d(0, 0, 0);
+            image-rendering: auto;
         }
         
         /* 車両番号と同じノイズオーバーレイ */
@@ -259,15 +267,17 @@
                     rgba(0, 0, 0, 1) 1px,
                     rgba(0, 0, 0, 1) 4px
                 );
-            animation: gentle-static 0.3s linear infinite;
+            animation: gentle-static 0.5s linear infinite;
+            will-change: transform;
+            transform: translate3d(0, 0, 0);
         }
 
         @keyframes gentle-static {
-            0% { transform: translate(0px, 0px); }
-            25% { transform: translate(-0.5px, 0.5px); }
-            50% { transform: translate(0.5px, -0.5px); }
-            75% { transform: translate(-0.5px, -0.5px); }
-            100% { transform: translate(0px, 0px); }
+            0% { transform: translate3d(0px, 0px, 0px); }
+            25% { transform: translate3d(-0.5px, 0.5px, 0px); }
+            50% { transform: translate3d(0.5px, -0.5px, 0px); }
+            75% { transform: translate3d(-0.5px, -0.5px, 0px); }
+            100% { transform: translate3d(0px, 0px, 0px); }
         }
 
         .noise-overlay::after {
@@ -287,12 +297,14 @@
                     rgba(0, 0, 0, 1) 80%,
                     rgba(255, 255, 255, 0.05) 100%
                 );
-            animation: gentle-scan-lines 3s linear infinite;
+            animation: gentle-scan-lines 4s linear infinite;
+            will-change: transform;
+            transform: translate3d(0, 0, 0);
         }
 
         @keyframes gentle-scan-lines {
-            0% { transform: translateY(-100%); }
-            100% { transform: translateY(100vh); }
+            0% { transform: translate3d(0, -100%, 0); }
+            100% { transform: translate3d(0, 100vh, 0); }
         }
         
         .noise-text {
@@ -872,13 +884,13 @@
                     cameraStream.getTracks().forEach(track => track.stop());
                 }
                 
-                // カメラの制約設定
+                // カメラの制約設定（パフォーマンス重視）
                 const constraints = {
                     video: {
                         deviceId: { exact: deviceId },
-                        width: { ideal: 1920, max: 4096 },
-                        height: { ideal: 1080, max: 2160 },
-                        frameRate: { ideal: 30, max: 60 }
+                        width: { ideal: 1280, max: 1920 },
+                        height: { ideal: 720, max: 1080 },
+                        frameRate: { ideal: 15, max: 24 }
                     },
                     audio: false
                 };
@@ -979,43 +991,48 @@
             startDelayedVideo();
         }
         
-        // 遅延映像を開始
+        // 遅延映像を開始（パフォーマンス最適化版）
         function startDelayedVideo() {
             const ctx = delayedCanvas.getContext('2d');
             delayedFrames = [];
+            let frameCount = 0;
+            
+            // キャンバスのサイズを一度だけ設定
+            delayedCanvas.width = 640;  // 小さい解像度で処理
+            delayedCanvas.height = 480;
             
             function captureFrame() {
-                if (cameraVideo.readyState === cameraVideo.HAVE_ENOUGH_DATA) {
-                    // 現在のフレームをキャプチャ
+                frameCount++;
+                
+                // フレームを間引く（3フレームに1回だけ処理）
+                if (frameCount % 3 === 0 && cameraVideo.readyState === cameraVideo.HAVE_ENOUGH_DATA) {
+                    // 低解像度でフレームをキャプチャ
                     const tempCanvas = document.createElement('canvas');
                     const tempCtx = tempCanvas.getContext('2d');
-                    tempCanvas.width = cameraVideo.videoWidth;
-                    tempCanvas.height = cameraVideo.videoHeight;
+                    tempCanvas.width = 320;  // さらに小さい解像度
+                    tempCanvas.height = 240;
                     
-                    tempCtx.drawImage(cameraVideo, 0, 0);
+                    // 低解像度で描画
+                    tempCtx.drawImage(cameraVideo, 0, 0, 320, 240);
                     
                     // フレームを配列に追加（タイムスタンプ付き）
                     delayedFrames.push({
-                        imageData: tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height),
-                        timestamp: Date.now(),
-                        width: tempCanvas.width,
-                        height: tempCanvas.height
+                        canvas: tempCanvas,
+                        timestamp: Date.now()
                     });
                     
-                    // 1秒より古いフレームを削除
+                    // 1秒より古いフレームを削除（メモリ効率化）
                     const oneSecondAgo = Date.now() - 1000;
+                    const oldLength = delayedFrames.length;
                     delayedFrames = delayedFrames.filter(frame => frame.timestamp > oneSecondAgo);
                     
                     // 1秒前のフレームがあれば表示
                     if (delayedFrames.length > 0) {
                         const oldestFrame = delayedFrames[0];
                         
-                        // キャンバスのサイズを調整
-                        delayedCanvas.width = oldestFrame.width;
-                        delayedCanvas.height = oldestFrame.height;
-                        
-                        // 遅延フレームを描画
-                        ctx.putImageData(oldestFrame.imageData, 0, 0);
+                        // 拡大して描画
+                        ctx.clearRect(0, 0, delayedCanvas.width, delayedCanvas.height);
+                        ctx.drawImage(oldestFrame.canvas, 0, 0, delayedCanvas.width, delayedCanvas.height);
                     }
                 }
                 

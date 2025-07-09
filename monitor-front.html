@@ -4,27 +4,111 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>モニター前 - 謎解きシステム</title>
-    <link rel="stylesheet" href="styles.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background-color: #000;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        /* 隠しボタン（左上5回タップ） */
+        .hidden-back-btn {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100px;
+            height: 100px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            z-index: 1000;
+            opacity: 0;
+        }
+        
+        /* 画像表示エリア */
+        .image-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* 画像 */
+        #progressImage {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            display: none;
+        }
+        
+        /* ローディングテキスト */
+        #loadingText {
+            color: white;
+            font-size: 24px;
+            text-align: center;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        /* タップ回数インジケーター */
+        .tap-indicator {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 60px;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #fff;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 999;
+        }
+        
+        .tap-indicator.show {
+            opacity: 1;
+        }
+        
+        /* レスポンシブデザイン */
+        @media (max-width: 768px) {
+            #loadingText {
+                font-size: 18px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <button class="back-btn" onclick="goBack()">← 戻る</button>
+    <!-- 隠しボタン（左上5回タップでホームに戻る） -->
+    <button class="hidden-back-btn" id="hiddenBackBtn"></button>
     
-    <div class="container">
-        <h1>モニター前</h1>
-        
-        <div class="image-display" id="imageDisplay">
-            <img id="progressImage" src="" alt="進捗画像" style="display: none;">
-            <p id="loadingText">画像を読み込み中...</p>
-        </div>
-        
-        <div class="controls">
-            <button class="control-btn" id="fullscreenBtn">全画面表示</button>
-            <button class="control-btn" id="refreshBtn">更新</button>
-        </div>
-        
-        <div class="team-info">
-            <p id="teamInfo">スタッフがチームを選択していません</p>
-        </div>
+    <!-- タップインジケーター -->
+    <div class="tap-indicator" id="tapIndicator">5</div>
+    
+    <!-- 画像表示エリア -->
+    <div class="image-container">
+        <img id="progressImage" src="" alt="進捗画像">
+        <p id="loadingText">画像を読み込み中...</p>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
@@ -38,6 +122,12 @@
         let selectedTeamData = null;
         let unsubscribeSelectedTeam = null;
         let heartbeatInterval = null;
+        let tapCount = 0;
+        let tapTimer = null;
+
+        // DOM要素
+        const hiddenBackBtn = document.getElementById('hiddenBackBtn');
+        const tapIndicator = document.getElementById('tapIndicator');
 
         // 接続監視のハートビート送信
         function sendHeartbeat() {
@@ -82,23 +172,17 @@
 
         // 画像を更新
         function updateImage() {
-            const teamInfoElement = document.getElementById('teamInfo');
-            
             if (!selectedTeamData) {
                 const loadingText = document.getElementById('loadingText');
                 const img = document.getElementById('progressImage');
                 loadingText.textContent = 'スタッフがチームを選択していません';
                 img.style.display = 'none';
                 loadingText.style.display = 'block';
-                teamInfoElement.textContent = 'スタッフがチームを選択していません';
                 return;
             }
             
             // 選択されたチームの現在のステップを取得
             const currentStep = selectedTeamData.currentStep || 0;
-            
-            // チーム情報を更新
-            teamInfoElement.textContent = `チーム${selectedTeamData.teamId} - ステップ${currentStep + 1}`;
             
             // 画像パスを生成（ステップ1から8まで）
             const imagePath = `images/front/step_${currentStep + 1}.jpg`;
@@ -107,7 +191,7 @@
             const img = document.getElementById('progressImage');
             const loadingText = document.getElementById('loadingText');
             
-            loadingText.textContent = `画像読み込み中...`;
+            loadingText.textContent = `チーム${selectedTeamData.teamId} - ステップ${currentStep + 1} 読み込み中...`;
             
             img.onload = function() {
                 loadingText.style.display = 'none';
@@ -121,19 +205,6 @@
             };
             
             img.src = imagePath;
-        }
-
-        // 全画面表示
-        function toggleFullscreen() {
-            const imageDisplay = document.getElementById('imageDisplay');
-            
-            if (!document.fullscreenElement) {
-                imageDisplay.requestFullscreen().catch(err => {
-                    console.error('フルスクリーン表示に失敗:', err);
-                });
-            } else {
-                document.exitFullscreen();
-            }
         }
 
         // 選択されたチームの変更を監視
@@ -151,16 +222,54 @@
             });
         }
 
+        // 戻るボタンの設定
+        function setupBackButton() {
+            hiddenBackBtn.addEventListener('click', function() {
+                tapCount++;
+                const remaining = 5 - tapCount;
+                
+                tapIndicator.textContent = remaining;
+                tapIndicator.classList.add('show');
+                
+                if (tapTimer) {
+                    clearTimeout(tapTimer);
+                }
+                
+                if (tapCount >= 5) {
+                    console.log('5回タップ完了 - ホームに戻る');
+                    goBack();
+                    return;
+                }
+                
+                // 3秒以内にタップしなかった場合リセット
+                tapTimer = setTimeout(() => {
+                    tapCount = 0;
+                    tapIndicator.textContent = '5';
+                    tapIndicator.classList.remove('show');
+                }, 3000);
+                
+                // 1秒後にインジケーターを隠す
+                setTimeout(() => {
+                    if (tapCount < 5) {
+                        tapIndicator.classList.remove('show');
+                    }
+                }, 1000);
+            });
+        }
+
         // 戻るボタン
         function goBack() {
             if (unsubscribeSelectedTeam) {
                 unsubscribeSelectedTeam();
             }
+            stopHeartbeat();
             window.location.href = 'index.html';
         }
 
         // 初期化
         document.addEventListener('DOMContentLoaded', function() {
+            setupBackButton();
+            
             // 接続監視開始
             startHeartbeat();
             
@@ -168,13 +277,6 @@
             setTimeout(() => {
                 watchSelectedTeam();
             }, 1000);
-            
-            // イベントリスナーを追加
-            document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
-            document.getElementById('refreshBtn').addEventListener('click', updateImage);
-            
-            // 画像クリックでも全画面表示
-            document.getElementById('imageDisplay').addEventListener('click', toggleFullscreen);
         });
 
         // ページ離脱時のクリーンアップ
