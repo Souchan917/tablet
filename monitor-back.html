@@ -55,49 +55,173 @@
             z-index: 1;
         }
         
-        /* 車両番号モニター */
+        /* 車両番号モニター - 縮小版 */
         .car-number-monitor {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 300px;
-            height: 200px;
+            width: 450px;
+            height: 300px;
             background: linear-gradient(45deg, #111111, #333333);
-            border: 3px solid #d4af37;
-            border-radius: 8px;
+            border: 6px solid;
+            border-image: linear-gradient(135deg, #d4af37, #f4e38e, #d4af37, #7d6608) 1;
+            border-radius: 0px;
+            padding: 0.8rem;
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
             z-index: 2;
             box-shadow: 
                 0 10px 30px rgba(0, 0, 0, 0.8), 
                 inset 0 2px 10px rgba(255, 215, 0, 0.2),
                 0 0 20px rgba(212, 175, 55, 0.3);
+            position: relative;
+            overflow: hidden;
         }
         
-        .monitor-header {
-            font-size: 14px;
+        .car-number-monitor::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><rect x="0" y="0" width="20" height="20" fill="none" stroke="rgba(212, 175, 55, 0.15)" stroke-width="1"/></svg>');
+            background-size: 20px 20px;
+            pointer-events: none;
+            opacity: 0.2;
+        }
+
+        .car-number-monitor::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, 
+                rgba(212, 175, 55, 0.1) 0%, 
+                rgba(212, 175, 55, 0) 50%, 
+                rgba(212, 175, 55, 0.1) 100%);
+            pointer-events: none;
+        }
+        
+        .monitor-emblem {
+            width: 80%;
+            max-width: 300px;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+            border: 1px solid #d4af37;
+            padding: 0.2rem;
+            background-color: #111111;
+            border-radius: 2px;
+            box-shadow: 
+                inset 0 0 3px rgba(0, 0, 0, 0.8),
+                0 0 5px rgba(212, 175, 55, 0.3);
+        }
+
+        .monitor-emblem-inner {
+            border: 1px solid #d4af37;
+            padding: 0.3rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #111111;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .monitor-emblem-inner::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(
+                to right,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, 0.3) 100%
+            );
+            transform: skewX(-25deg);
+            animation: shine 5s infinite;
+        }
+
+        @keyframes shine {
+            0% { left: -100%; }
+            20% { left: 100%; }
+            100% { left: 100%; }
+        }
+
+        .monitor-emblem-text {
             color: #d4af37;
+            font-size: 0.9rem;
             font-weight: bold;
-            margin-bottom: 10px;
             letter-spacing: 2px;
+            text-align: center;
+            text-shadow: 0 0 3px rgba(212, 175, 55, 0.5);
+            white-space: nowrap;
+        }
+
+        .monitor-car-number-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-grow: 1;
+            justify-content: center;
+            width: 100%;
+            position: relative;
+            margin-top: 0.5rem;
+            transform: translateY(-5vh);
         }
         
         .monitor-car-number {
-            font-size: 48px;
+            font-size: 4rem;
             font-weight: bold;
             color: #d4af37;
-            text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+            text-shadow: 
+                0 2px 5px rgba(0, 0, 0, 0.5),
+                0 0 10px rgba(212, 175, 55, 0.3),
+                0 0 20px rgba(212, 175, 55, 0.2);
+            line-height: 0.9;
+            text-align: center;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             font-family: 'Times New Roman', Times, serif;
+            min-height: 6rem;
+            position: relative;
         }
         
-        .monitor-suffix {
-            font-size: 16px;
+        .monitor-car-suffix {
+            font-size: 1.5rem;
+            font-weight: bold;
             color: #d4af37;
-            margin-top: 5px;
+            margin-top: -1.5rem;
             letter-spacing: 1px;
+            text-align: center;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            font-family: sans-serif;
+        }
+
+        /* 桁数に応じたフォントサイズ微調整 */
+        .monitor-car-number.digits-1 {
+            font-size: 4.5rem;
+        }
+        
+        .monitor-car-number.digits-2 {
+            font-size: 4.3rem;
+        }
+        
+        .monitor-car-number.digits-3 {
+            font-size: 4rem;
+        }
+        
+        .monitor-car-number.digits-4 {
+            font-size: 3.6rem;
         }
         
         /* ローディングテキスト */
@@ -158,9 +282,15 @@
         
         <!-- 車両番号モニター -->
         <div class="car-number-monitor" id="carNumberMonitor">
-            <div class="monitor-header">GATANGO TRAIN</div>
-            <div class="monitor-car-number" id="monitorCarNumber">3600</div>
-            <div class="monitor-suffix">号車</div>
+            <div class="monitor-emblem">
+                <div class="monitor-emblem-inner">
+                    <div class="monitor-emblem-text">GATANGO TRAIN</div>
+                </div>
+            </div>
+            <div class="monitor-car-number-container">
+                <div class="monitor-car-number" id="monitorCarNumber">3600</div>
+                <div class="monitor-car-suffix">号車</div>
+            </div>
         </div>
         
         <p id="loadingText">画像を読み込み中...</p>
@@ -231,6 +361,10 @@
         function updateCarNumber() {
             const monitorCarNumber = document.getElementById('monitorCarNumber');
             monitorCarNumber.textContent = currentCarNumber;
+            
+            // 桁数に応じたクラス設定
+            const digitCount = currentCarNumber.toString().length;
+            monitorCarNumber.className = `monitor-car-number digits-${digitCount}`;
         }
         
         // 車両番号の変更を監視
