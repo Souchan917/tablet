@@ -1141,36 +1141,39 @@
             const aspectRatio = videoWidth / videoHeight;
             log(`カメラ映像サイズ: ${videoWidth}x${videoHeight}, 比率: ${aspectRatio.toFixed(2)}`);
             
-            // カメラの実際の映像サイズをそのまま使用
-            const canvasWidth = videoWidth;
-            const canvasHeight = videoHeight;
+            // デバイス性能に応じた固定解像度設定（画面サイズを変えない）
+            const performance = estimateDevicePerformance();
+            let baseWidth, frameSkip;
+            
+            switch (performance) {
+                case 'high':
+                    baseWidth = 1280;
+                    frameSkip = 2;
+                    break;
+                case 'medium':
+                    baseWidth = 960;
+                    frameSkip = 2;
+                    break;
+                case 'low':
+                default:
+                    baseWidth = 640;
+                    frameSkip = 3;
+                    break;
+            }
+            
+            // キャンバスサイズは固定（16:9比率）
+            const canvasWidth = baseWidth;
+            const canvasHeight = Math.round(baseWidth * 9 / 16);
             
             // 処理用解像度は表示用の50%に設定（性能最適化）
             const processingWidth = Math.round(canvasWidth * 0.5);
             const processingHeight = Math.round(canvasHeight * 0.5);
             
-            // キャンバスのサイズを設定（カメラの実際のサイズに合わせる）
+            // キャンバスのサイズを固定（画面サイズが変わらない）
             delayedCanvas.width = canvasWidth;
             delayedCanvas.height = canvasHeight;
             
             log(`遅延映像キャンバス: ${canvasWidth}x${canvasHeight}, 処理用: ${processingWidth}x${processingHeight}`);
-            
-            // デバイス性能に応じたフレームスキップ設定
-            const performance = estimateDevicePerformance();
-            let frameSkip;
-            
-            switch (performance) {
-                case 'high':
-                    frameSkip = 2;
-                    break;
-                case 'medium':
-                    frameSkip = 2;
-                    break;
-                case 'low':
-                default:
-                    frameSkip = 3;
-                    break;
-            }
             
             function captureFrame() {
                 frameCount++;
@@ -1183,7 +1186,7 @@
                     tempCanvas.width = processingWidth;
                     tempCanvas.height = processingHeight;
                     
-                    // 比率を保ったまま処理用解像度で描画
+                    // カメラの実際のサイズを処理用解像度に合わせて描画
                     tempCtx.drawImage(cameraVideo, 0, 0, processingWidth, processingHeight);
                     
                     // フレームを配列に追加（タイムスタンプ付き）
@@ -1200,7 +1203,7 @@
                     if (delayedFrames.length > 0) {
                         const oldestFrame = delayedFrames[0];
                         
-                        // 表示用解像度に拡大して描画（比率を保持）
+                        // 固定サイズのキャンバスに描画（CSSで画面全体に表示）
                         ctx.clearRect(0, 0, delayedCanvas.width, delayedCanvas.height);
                         ctx.drawImage(oldestFrame.canvas, 0, 0, delayedCanvas.width, delayedCanvas.height);
                     }
